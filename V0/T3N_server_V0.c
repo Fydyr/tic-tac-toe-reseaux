@@ -72,8 +72,11 @@ int main(int argc, char *argv[]){
 
 		read_message(socketDialogue,messageRecu,LG_MESSAGE*sizeof(char));
 
+		strcpy(buffer, "start");
 		send_message(socketDialogue,buffer);
 	}
+
+
 	// On ferme la ressource avant de quitter
 	close(socketEcoute);
 	return 0;

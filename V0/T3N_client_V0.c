@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include "socket_management.h"
 
+#define LG_MESSAGE 256
+
 int main(int argc, char *argv[]){
 	int descripteurSocket;
 	struct sockaddr_in sockaddrDistant;
@@ -77,6 +79,8 @@ int main(int argc, char *argv[]){
 		default: /* envoi de n octets */
 			printf("Message %s envoyé! (%d octets)\n\n", buffer, nb);
 	}
+
+	read_message(descripteurSocket,buffer,LG_MESSAGE*sizeof(char));
 
 	// On ferme la ressource avant de quitter
 	close(descripteurSocket);
