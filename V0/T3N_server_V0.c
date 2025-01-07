@@ -6,9 +6,12 @@
 #include <string.h> /* pour memset */
 #include <netinet/in.h> /* pour struct sockaddr_in */
 #include <arpa/inet.h> /* pour htons et inet_aton */
+#include "socket_management.h"
 
 #define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
+
+
 
 int main(int argc, char *argv[]){
     int socketEcoute;
@@ -67,35 +70,9 @@ int main(int argc, char *argv[]){
 			exit(-4);
 		}
 
-		// On réception les données du client (cf. protocole)
-		lus = recv(socketDialogue, messageRecu, LG_MESSAGE*sizeof(char), 0); // ici appel bloquant
-		switch(lus) {
-			case -1 : /* une erreur ! */ 
-				  perror("recv"); 
-				  close(socketDialogue); 
-				  exit(-5);
-			case 0  : /* la socket est fermée */
-				  fprintf(stderr, "La socket a été fermée par le client !\n\n");
-				  close(socketDialogue);
-				  return 0;
-			default:  /* réception de n octets */
-				  printf("Demande du client : %s (%d octets)\n\n", messageRecu, lus);
-				  int choix = atoi(messageRecu); // Convertit le message reçu en entier pour le choix
-		}
+		read_message(socketDialogue,messageRecu,LG_MESSAGE*sizeof(char));
 
-		// Envoi de la réponse au client
-		switch(lus = send(socketDialogue, buffer, strlen(buffer)+1, 0)){
-			case -1 : /* une erreur ! */
-				perror("Erreur en écriture...");
-				close(socketDialogue);
-				exit(-3);
-			case 0 : /* le socket est fermée */
-				  fprintf(stderr, "La socket a été fermée par le client !\n\n");
-				  close(socketDialogue);
-				  return 0;
-			default: /* envoi de n octets */
-				printf("Réponse envoyée au client : %s (%d octets)\n\n", buffer, lus);
-		}
+		send_message(socketDialogue,buffer);
 	}
 	// On ferme la ressource avant de quitter
 	close(socketEcoute);
