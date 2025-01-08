@@ -10,7 +10,7 @@
 #include <time.h>
 #include "socket_management.h"
 
-#define PORT 5001 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5002 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
 #define GRID_SIZE 3
 #define GRID_CASE GRID_SIZE *GRID_SIZE
@@ -117,6 +117,8 @@ int main(int argc, char *argv[])
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
 	int nb_left;					  /* nb de cases restantes */
+	int winner_x = 0;					  /* si le joueur X à gagné */
+	int winner_O = 0;					  /* si le joueur O à gagné */
 
 	srand(time(NULL));
 
@@ -196,7 +198,7 @@ int main(int argc, char *argv[])
 
 		while (1)
 		{
-			char message[4]; 
+			char message[10]; 
 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
 
@@ -205,12 +207,21 @@ int main(int argc, char *argv[])
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
 
+				winner_x = gagnant('X', grid);
 				nb_left = check_full(grid);
-				printf("%d\n", nb_left);
 
-				if (nb_left == 0)
+				if (nb_left == 0 || winner_x == 1)
 				{
-					printf("");
+					if (winner_x == 1)
+					{
+						strcpy(message, "XWIN"); 
+						send_message(socketDialogue, message);
+					}
+					else
+					{
+						strcpy(message, "XEND"); 
+						send_message(socketDialogue, message);
+					}
 				}
 				else
 				{
@@ -219,10 +230,45 @@ int main(int argc, char *argv[])
 					update_grid(random_nb, grid, 'O');
 					show_grid(grid);
 
-					message[0] = random_nb + '0'; 
-					message[1] = 'O';
+					winner_O = gagnant('O', grid);
+					nb_left = check_full(grid);
 
-					send_message(socketDialogue, message);
+					if (nb_left == 0 || winner_O == 1)
+					{
+						if (winner_O == 1)
+						{
+							strcpy(message, "OWIN"); 
+							send_message(socketDialogue, message);
+
+							memset(&message, 0x00, 9);
+							message[0] = random_nb + '0'; 
+							message[1] = 'O';
+
+							send_message(socketDialogue, message);
+						}
+						else
+						{
+							strcpy(message, "OEND"); 
+							send_message(socketDialogue, message);
+
+							memset(&message, 0x00, 9);
+							message[0] = random_nb + '0'; 
+							message[1] = 'O';
+
+							send_message(socketDialogue, message);
+						}
+					}
+					else
+					{
+						strcpy(message, "CONTINUE"); 
+						send_message(socketDialogue, message);
+
+						memset(&message, 0x00, 9);
+						message[0] = random_nb + '0'; 
+						message[1] = 'O';
+
+						send_message(socketDialogue, message);
+					}
 				}
 			}
 		}

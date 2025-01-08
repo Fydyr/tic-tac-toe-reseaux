@@ -48,7 +48,8 @@ int main(int argc, char *argv[])
 	struct sockaddr_in sockaddrDistant;
 	socklen_t longueurAdresse;
 
-	char buffer[] = "Hello server!"; // buffer stockant le message
+	char buffer[] = "Demande de partie"; // buffer stockant le message
+	int next;							 // Si le joueur à bien choisi le chiffre
 	// int nb;							 /* nb d’octets écrits et lus */
 
 	char ip_dest[16];
@@ -124,29 +125,29 @@ int main(int argc, char *argv[])
 
 		// While is not a number
 		while (1) {
-			printf("Please enter a number between 1 and 9: ");
+        printf("Please enter a number between 1 and 9: ");
 
-			// Check if the input is valid
-			if (scanf("%d", &chosenCase) != 1) {
-				printf("Invalid input. Please enter a valid number.\n");
-				while (getchar() != '\n') // Clear the buffer
-					;
-				continue;
-			}
+        // Check if the input is valid
+        if (scanf("%d", &chosenCase) != 1) {
+            printf("Invalid input. Please enter a valid number.\n");
+            while (getchar() != '\n') // Clear the buffer
+                ;
+            continue;
+        }
 
-			// Check if the number is in the range [1, 9]
-			if (chosenCase < 1 || chosenCase > 9) {
-				printf("The number must be between 1 and 9. Try again.\n");
-				continue;
-			}
+        // Check if the number is in the range [1, 9]
+        if (chosenCase < 1 || chosenCase > 9) {
+            printf("The number must be between 1 and 9. Try again.\n");
+            continue;
+        }
 
-			// If everything is correct, exit the loop
-			break;
-    	}
+        // If everything is correct, exit the loop
+        break;
+    }
 
 		if (chosenCase >= 1 && chosenCase <= GRID_CASE)
 		{
-			char message[4] = {chosenCase + '0', 'X'}; 
+			char message[10] = {chosenCase + '0', 'X'}; 
 
 			send_message(descripteurSocket, message);
 
@@ -157,8 +158,48 @@ int main(int argc, char *argv[])
 
 			read_message(descripteurSocket, message, sizeof(message));
 
-			update_grid(message[0] - '0', grid, message[1]);
-			show_grid(grid);
+			if (message[0] == 'X' || message[0] == 'O')
+			{
+				if (strcmp(message, "XWIN") == 0)
+				{
+					printf("The player as won !\n");
+					close(descripteurSocket);
+					return 0;
+				}
+				else if (strcmp(message, "XEND") == 0)
+				{
+					printf("Game over\nNo winner !\n");
+					close(descripteurSocket);
+					return 0;
+				}
+				else if (strcmp(message, "OWIN") == 0)
+				{
+					read_message(descripteurSocket, message, sizeof(message));
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+					printf("The server as won !\n");
+					close(descripteurSocket);
+					return 0;
+				}
+				else if (strcmp(message, "OEND") == 0)
+				{
+					read_message(descripteurSocket, message, sizeof(message));
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+					printf("Game over\nNo winner !\n");
+					close(descripteurSocket);
+				}
+			}
+			else if (strcmp(message, "CONTINUE") == 0)
+			{
+				read_message(descripteurSocket, message, sizeof(message));
+				update_grid(message[0] - '0', grid, message[1]);
+				show_grid(grid);
+			}
+			else
+			{
+
+			}
 		}
 	}
 
