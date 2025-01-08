@@ -10,7 +10,7 @@
 #include <time.h>
 #include "socket_management.h"
 
-#define PORT 5002 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5003 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
 #define GRID_SIZE 3
 #define GRID_CASE GRID_SIZE *GRID_SIZE
@@ -202,53 +202,88 @@ int main(int argc, char *argv[])
 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
 
-			if ( bytesRead > 0)
+			if (message[0] - '0' < 0)
 			{
-				update_grid(message[0] - '0', grid, message[1]);
-				show_grid(grid);
+				strcpy(message, "ERROR"); 
+				send_message(socketDialogue, message);
 
-				winner_x = gagnant('X', grid);
-				nb_left = check_full(grid);
+				memset(&message, 0x00, 9);
+				message[0] = '1'; 
 
-				if (nb_left == 0 || winner_x == 1)
+				send_message(socketDialogue, message);
+			}
+			else if (message[0] - '0' > 8)
+			{
+				strcpy(message, "ERROR"); 
+				send_message(socketDialogue, message);
+
+				memset(&message, 0x00, 9);
+				message[0] = '2'; 
+
+				send_message(socketDialogue, message);
+			}
+			else
+			{
+				if ( bytesRead > 0)
 				{
-					if (winner_x == 1)
-					{
-						strcpy(message, "XWIN"); 
-						send_message(socketDialogue, message);
-					}
-					else
-					{
-						strcpy(message, "XEND"); 
-						send_message(socketDialogue, message);
-					}
-				}
-				else
-				{
-					int random_nb = (rand() % GRID_CASE) + 1;
 
-					update_grid(random_nb, grid, 'O');
+					update_grid(message[0] - '0', grid, message[1]);
 					show_grid(grid);
 
-					winner_O = gagnant('O', grid);
+					winner_x = gagnant('X', grid);
 					nb_left = check_full(grid);
 
-					if (nb_left == 0 || winner_O == 1)
+					if (nb_left == 0 || winner_x == 1)
 					{
-						if (winner_O == 1)
+						if (winner_x == 1)
 						{
-							strcpy(message, "OWIN"); 
-							send_message(socketDialogue, message);
-
-							memset(&message, 0x00, 9);
-							message[0] = random_nb + '0'; 
-							message[1] = 'O';
-
+							strcpy(message, "XWIN"); 
 							send_message(socketDialogue, message);
 						}
 						else
 						{
-							strcpy(message, "OEND"); 
+							strcpy(message, "XEND"); 
+							send_message(socketDialogue, message);
+						}
+					}
+					else
+					{
+						int random_nb = (rand() % GRID_CASE) + 1;
+
+						update_grid(random_nb, grid, 'O');
+						show_grid(grid);
+
+						winner_O = gagnant('O', grid);
+						nb_left = check_full(grid);
+
+						if (nb_left == 0 || winner_O == 1)
+						{
+							if (winner_O == 1)
+							{
+								strcpy(message, "OWIN"); 
+								send_message(socketDialogue, message);
+
+								memset(&message, 0x00, 9);
+								message[0] = random_nb + '0'; 
+								message[1] = 'O';
+
+								send_message(socketDialogue, message);
+							}
+							else
+							{
+								strcpy(message, "OEND"); 
+								send_message(socketDialogue, message);
+
+								memset(&message, 0x00, 9);
+								message[0] = random_nb + '0'; 
+								message[1] = 'O';
+
+								send_message(socketDialogue, message);
+							}
+						}
+						else
+						{
+							strcpy(message, "CONTINUE"); 
 							send_message(socketDialogue, message);
 
 							memset(&message, 0x00, 9);
@@ -257,17 +292,6 @@ int main(int argc, char *argv[])
 
 							send_message(socketDialogue, message);
 						}
-					}
-					else
-					{
-						strcpy(message, "CONTINUE"); 
-						send_message(socketDialogue, message);
-
-						memset(&message, 0x00, 9);
-						message[0] = random_nb + '0'; 
-						message[1] = 'O';
-
-						send_message(socketDialogue, message);
 					}
 				}
 			}
