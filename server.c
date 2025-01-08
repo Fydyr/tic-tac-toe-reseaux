@@ -10,7 +10,7 @@
 #include <time.h>
 #include "socket_management.h"
 
-#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5001 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
 #define GRID_SIZE 3
 #define GRID_CASE GRID_SIZE *GRID_SIZE
@@ -48,6 +48,45 @@ void update_grid(const int i, char grid[GRID_CASE], const char symbol)
 	grid[i-1] = symbol;
 }
 
+int check_full(const char *grid){
+	int i, nb;
+	nb = 0;
+
+	for (i = 0; i < GRID_CASE; i++)
+	{
+		if (grid[i] == ' ')
+		{
+			nb = nb + 1;
+		}
+	}
+
+	return nb;
+}
+
+int gagnant(char joueur, const char *grid){
+	int i, result;
+
+    for (i = 0; i < GRID_CASE; i=i+3) {
+        if (grid[i] == joueur && grid[i+1] == joueur && grid[i+2] == joueur) {
+            result = 1;
+        }
+    }
+
+    // Vérifier les colonnes
+    for (i = 0; i < GRID_CASE; i++) {
+        if (grid[i] == joueur && grid[i+3] == joueur && grid[i+6] == joueur) {
+            result = 1;
+        }
+    }
+
+    // Vérifier les diagonales
+    if ((grid[0] == joueur && grid[4] == joueur && grid[8] == joueur) || (grid[2] == joueur && grid[4] == joueur && grid[6] == joueur)) {
+            result = 1;
+    }
+
+    return result;
+}
+
 void handle_signal(int sig)
 {
 	printf("\nSignal reçu (%d). Fermeture du serveur...\n", sig);
@@ -77,7 +116,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in pointDeRencontreDistant;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
-	int lus;					  /* nb d’octets lus */
+	int nb_left;					  /* nb de cases restantes */
 
 	srand(time(NULL));
 
@@ -166,15 +205,25 @@ int main(int argc, char *argv[])
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
 
-				int random_nb = (rand() % GRID_CASE) + 1;
+				nb_left = check_full(grid);
+				printf("%d\n", nb_left);
 
-				update_grid(random_nb, grid, 'O');
-				show_grid(grid);
+				if (nb_left == 0)
+				{
+					printf("");
+				}
+				else
+				{
+					int random_nb = (rand() % GRID_CASE) + 1;
 
-				message[0] = random_nb + '0'; 
-				message[1] = 'O';
+					update_grid(random_nb, grid, 'O');
+					show_grid(grid);
 
-				send_message(socketDialogue, message);
+					message[0] = random_nb + '0'; 
+					message[1] = 'O';
+
+					send_message(socketDialogue, message);
+				}
 			}
 		}
 	}

@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 	socklen_t longueurAdresse;
 
 	char buffer[] = "Hello server!"; // buffer stockant le message
-	int nb;							 /* nb d’octets écrits et lus */
+	// int nb;							 /* nb d’octets écrits et lus */
 
 	char ip_dest[16];
 	int port_dest;
@@ -123,13 +123,26 @@ int main(int argc, char *argv[])
 		printf("Choose a case: ");
 
 		// While is not a number
-		if (scanf("%d", &chosenCase) != 1)
-		{
-			printf("Invalid input. Please enter a valid number.\n");
-			while (getchar() != '\n')
-				;
-			continue;
-		}
+		while (1) {
+			printf("Please enter a number between 1 and 9: ");
+
+			// Check if the input is valid
+			if (scanf("%d", &chosenCase) != 1) {
+				printf("Invalid input. Please enter a valid number.\n");
+				while (getchar() != '\n') // Clear the buffer
+					;
+				continue;
+			}
+
+			// Check if the number is in the range [1, 9]
+			if (chosenCase < 1 || chosenCase > 9) {
+				printf("The number must be between 1 and 9. Try again.\n");
+				continue;
+			}
+
+			// If everything is correct, exit the loop
+			break;
+    	}
 
 		if (chosenCase >= 1 && chosenCase <= GRID_CASE)
 		{
