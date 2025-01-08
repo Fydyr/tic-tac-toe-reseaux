@@ -1,6 +1,6 @@
+#include "socket_management.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <socket_management.h>
 #include <string.h>
 #include <sys/socket.h>
 
@@ -9,8 +9,9 @@
  * @param socket The socket to read
  * @param message The variable who must contain the message
  * @param size The size of the message
+ * @return int The state of the read operation
  */
-void read_message(int socket, char *message, int size) {
+int read_message(int socket, char *message, int size) {
     int state;
 
     if (message == NULL) {
@@ -31,16 +32,16 @@ void read_message(int socket, char *message, int size) {
         case 0: // The socket is closed
             fprintf(stderr, "Socket has closed by the client.\n");
             close(socket);
-            break;
+            return 0;
 
         default: // Data have been recovered
             message[state] = '\0';
             printf("Recovered message : %s (%d bits)\n", message, state);
-            break;
+            return 1;
     }
 }
 
-void send_message(int socket, char *message)
+int send_message(int socket, char *message)
 {
 	int state;
 	switch(state = send(socket, message, strlen(message)+1, 0)){
@@ -51,8 +52,9 @@ void send_message(int socket, char *message)
 			case 0 : /* socket is closed */
 				  fprintf(stderr, "The socket has been closed !\n\n");
 				  close(socket);
-				  break;
+                  return 0;
 			default: /* envoi de n octets */
 				printf("Sending responses : %s (%d bits)\n\n", message, state);
+                return 1;
 		}
 }

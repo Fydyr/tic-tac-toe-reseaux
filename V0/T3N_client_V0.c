@@ -1,48 +1,84 @@
 #include <stdio.h>
-#include <stdlib.h> 
-#include <unistd.h> 
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <string.h>		
-#include <netinet/in.h> 
+#include <string.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include "socket_management.h"
 
 #define LG_MESSAGE 256
+#define GRID_SIZE 3
+#define GRID_CASE GRID_SIZE *GRID_SIZE
 
-int main(int argc, char *argv[]){
+void show_grid(const char grid[GRID_CASE])
+{
+	for (int i = 0; i < GRID_CASE; i++)
+	{
+		printf(" %c ", grid[i] ? grid[i] : ' ');
+		if ((i + 1) % GRID_SIZE == 0)
+		{
+			printf("\n");
+			if (i < GRID_CASE - GRID_SIZE)
+			{
+				for (int j = 0; j < GRID_SIZE - 1; j++)
+				{
+					printf("---+");
+				}
+				printf("---\n");
+			}
+		}
+		else
+		{
+			printf("|");
+		}
+	}
+	printf("\n");
+}
+
+void update_grid(const int i, char grid[GRID_CASE], const char symbol)
+{
+	grid[i - 1] = symbol;
+}
+
+int main(int argc, char *argv[])
+{
 	int descripteurSocket;
 	struct sockaddr_in sockaddrDistant;
 	socklen_t longueurAdresse;
 
-	char buffer[]="Hello server!"; // buffer stockant le message
-	int nb; /* nb d’octets écrits et lus */
+	char buffer[] = "Hello server!"; // buffer stockant le message
+	int nb;							 /* nb d’octets écrits et lus */
 
 	char ip_dest[16];
-	int  port_dest;
+	int port_dest;
 
 	// Pour pouvoir contacter le serveur, le client doit connaître son adresse IP et le port de comunication
 	// Ces 2 informations sont passées sur la ligne de commande
 	// Si le serveur et le client tournent sur la même machine alors l'IP locale fonctionne : 127.0.0.1
 	// Le port d'écoute du serveur est 5000 dans cet exemple, donc en local utiliser la commande :
 	// ./client_base_tcp 127.0.0.1 5000
-	if (argc>1) { // si il y a au moins 2 arguments passés en ligne de commande, récupération ip et port
-		strncpy(ip_dest,argv[1],16);
-		sscanf(argv[2],"%d",&port_dest);
-	}else{
-		printf("USAGE : %s ip port\n",argv[0]);
+	if (argc > 1)
+	{ // si il y a au moins 2 arguments passés en ligne de commande, récupération ip et port
+		strncpy(ip_dest, argv[1], 16);
+		sscanf(argv[2], "%d", &port_dest);
+	}
+	else
+	{
+		printf("USAGE : %s ip port\n", argv[0]);
 		exit(-1);
 	}
 
 	// Crée un socket de communication
 	descripteurSocket = socket(AF_INET, SOCK_STREAM, 0);
 	// Teste la valeur renvoyée par l’appel système socket()
-	if(descripteurSocket < 0){
+	if (descripteurSocket < 0)
+	{
 		perror("Erreur en création de la socket..."); // Affiche le message d’erreur
-		exit(-1); // On sort en indiquant un code erreur
+		exit(-1);									  // On sort en indiquant un code erreur
 	}
 	printf("Socket créée! (%d)\n", descripteurSocket);
-
 
 	// Remplissage de sockaddrDistant (structure sockaddr_in identifiant la machine distante)
 	// Obtient la longueur en octets de la structure sockaddr_in
@@ -59,30 +95,60 @@ int main(int argc, char *argv[]){
 	inet_aton(ip_dest, &sockaddrDistant.sin_addr);
 
 	// Débute la connexion vers le processus serveur distant
-	if((connect(descripteurSocket, (struct sockaddr *)&sockaddrDistant,longueurAdresse)) == -1){
+	if ((connect(descripteurSocket, (struct sockaddr *)&sockaddrDistant, longueurAdresse)) == -1)
+	{
 		perror("Erreur de connection avec le serveur distant...");
 		close(descripteurSocket);
 		exit(-2); // On sort en indiquant un code erreur
 	}
-	printf("Connexion au serveur %s:%d réussie!\n",ip_dest,port_dest);
+	printf("Connexion au serveur %s:%d réussie!\n", ip_dest, port_dest);
 
- 	// Envoi du message
-	//switch(nb = write(descripteurSocket, buffer, strlen(buffer))){
-	switch(nb = send(descripteurSocket, buffer, strlen(buffer)+1,0)){
-		case -1 : /* une erreur ! */
-     			perror("Erreur en écriture...");
-		     	close(descripteurSocket);
-		     	exit(-3);
-		case 0 : /* le socket est fermée */
-			fprintf(stderr, "Le socket a été fermée par le serveur !\n\n");
-			return 0;
-		default: /* envoi de n octets */
-			printf("Message %s envoyé! (%d octets)\n\n", buffer, nb);
+	send_message(descripteurSocket, buffer);
+
+	read_message(descripteurSocket, buffer, LG_MESSAGE * sizeof(char));
+
+	// Initialization of the grid
+	char grid[GRID_CASE];
+	for (int i = 0; i < GRID_CASE; i++)
+	{
+		grid[i] = ' ';
 	}
 
-	read_message(descripteurSocket,buffer,LG_MESSAGE*sizeof(char));
+	show_grid(grid);
 
-	// On ferme la ressource avant de quitter
+	// Loop on the interaction between client and server
+	while (1)
+	{
+		int chosenCase;
+		printf("Choose a case: ");
+
+		// While is not a number
+		if (scanf("%d", &chosenCase) != 1)
+		{
+			printf("Invalid input. Please enter a valid number.\n");
+			while (getchar() != '\n')
+				;
+			continue;
+		}
+
+		if (chosenCase >= 1 && chosenCase <= GRID_CASE)
+		{
+			char message[4] = {chosenCase + '0', 'X'}; 
+
+			send_message(descripteurSocket, message);
+
+			update_grid(chosenCase, grid, message[1]);
+			show_grid(grid);
+
+			memset(message, 0, sizeof(message));
+
+			read_message(descripteurSocket, message, sizeof(message));
+
+			update_grid(message[0] - '0', grid, message[1]);
+			show_grid(grid);
+		}
+	}
+
 	close(descripteurSocket);
 
 	return 0;

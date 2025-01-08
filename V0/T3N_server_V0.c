@@ -3,34 +3,103 @@
 #include <unistd.h> /* pour read, write, close, sleep */
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <string.h> /* pour memset */
+#include <string.h>		/* pour memset */
 #include <netinet/in.h> /* pour struct sockaddr_in */
-#include <arpa/inet.h> /* pour htons et inet_aton */
+#include <arpa/inet.h>	/* pour htons et inet_aton */
+#include <signal.h>
+#include <time.h>
 #include "socket_management.h"
 
 #define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
+#define GRID_SIZE 3
+#define GRID_CASE GRID_SIZE *GRID_SIZE
 
+int socketDialogue;
+int socketEcoute;
 
+void show_grid(const char grid[GRID_CASE])
+{
+	for (int i = 0; i < GRID_CASE; i++)
+	{
+		printf(" %c ", grid[i] ? grid[i] : ' ');
+		if ((i + 1) % GRID_SIZE == 0)
+		{
+			printf("\n");
+			if (i < GRID_CASE - GRID_SIZE)
+			{
+				for (int j = 0; j < GRID_SIZE - 1; j++)
+				{
+					printf("---+");
+				}
+				printf("---\n");
+			}
+		}
+		else
+		{
+			printf("|");
+		}
+	}
+	printf("\n");
+}
 
-int main(int argc, char *argv[]){
-    int socketEcoute;
+void update_grid(const int i, char grid[GRID_CASE], const char symbol)
+{
+	grid[i-1] = symbol;
+}
+
+void handle_signal(int sig)
+{
+	printf("\nSignal reçu (%d). Fermeture du serveur...\n", sig);
+
+	if (socketDialogue >= 0)
+	{
+		close(socketDialogue);
+		printf("Socket de dialogue fermée.\n");
+	}
+	if (socketEcoute >= 0)
+	{
+		close(socketEcoute);
+		printf("Socket d'écoute fermée.\n");
+	}
+
+	sleep(2);
+
+	exit(EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[])
+{
 
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t longueurAdresse;
 
-	int socketDialogue;
 	struct sockaddr_in pointDeRencontreDistant;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
-	char buffer[LG_MESSAGE]; // Buffer pour recevoir la réponse
-	int lus; /* nb d’octets lus */
+	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
+	int lus;					  /* nb d’octets lus */
+
+	srand(time(NULL));
+
+	// Check if the program is CTRL-C
+	// if (signal(SIGINT, handle_signal) == SIG_ERR) {
+	//    perror("signal");
+	//    exit(EXIT_FAILURE);
+	//}
+	// Check if the program window is close
+	if (signal(SIGHUP, handle_signal) == SIG_ERR)
+	{
+		perror("signal");
+		exit(EXIT_FAILURE);
+	}
 
 	// Crée un socket de communication
 	socketEcoute = socket(AF_INET, SOCK_STREAM, 0);
 	// Teste la valeur renvoyée par l’appel système socket()
-	if(socketEcoute < 0){
+	if (socketEcoute < 0)
+	{
 		perror("socket"); // Affiche le message d’erreur
-		exit(-1); // On sort en indiquant un code erreur
+		exit(-1);		  // On sort en indiquant un code erreur
 	}
 	printf("Socket créée avec succès ! (%d)\n", socketEcoute); // On prépare l’adresse d’attachement locale
 
@@ -41,43 +110,75 @@ int main(int argc, char *argv[]){
 	memset(&pointDeRencontreLocal, 0x00, longueurAdresse);
 	pointDeRencontreLocal.sin_family = PF_INET;
 	pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY); // attaché à toutes les interfaces locales disponibles
-	pointDeRencontreLocal.sin_port = htons(PORT); // = 5000 ou plus
+	pointDeRencontreLocal.sin_port = htons(PORT);			   // = 5000 ou plus
 
 	// On demande l’attachement local de la socket
-	if((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0) {
+	if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
+	{
 		perror("bind");
-		exit(-2); 
+		exit(-2);
 	}
 	printf("Socket attachée avec succès !\n");
 
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
-	if(listen(socketEcoute, 5) < 0){
-   		perror("listen");
-   		exit(-3);
+	if (listen(socketEcoute, 5) < 0)
+	{
+		perror("listen");
+		exit(-3);
 	}
 	printf("Socket placée en écoute passive ...\n");
 
-    // boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment ! 
-	while(1){
+	// boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment !
+	while (1)
+	{
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant
 		socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
-		if (socketDialogue < 0) {
-   		    perror("accept");
-			close(socketDialogue); 
+		if (socketDialogue < 0)
+		{
+			perror("accept");
+			close(socketDialogue);
 			close(socketEcoute);
 			exit(-4);
 		}
 
-		read_message(socketDialogue,messageRecu,LG_MESSAGE*sizeof(char));
+		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char));
 
 		strcpy(buffer, "start");
-		send_message(socketDialogue,buffer);
+		send_message(socketDialogue, buffer);
+
+		// Initialization of the grid
+		char grid[GRID_CASE];
+		for (int i = 0; i < GRID_CASE; i++)
+		{
+			grid[i] = ' ';
+		}
+
+		while (1)
+		{
+			char message[4]; 
+
+			int bytesRead = read_message(socketDialogue, message, sizeof(message));
+
+			if ( bytesRead > 0)
+			{
+				update_grid(message[0] - '0', grid, message[1]);
+				show_grid(grid);
+
+				int random_nb = (rand() % GRID_CASE) + 1;
+
+				update_grid(random_nb, grid, 'O');
+				show_grid(grid);
+
+				message[0] = random_nb + '0'; 
+				message[1] = 'O';
+
+				send_message(socketDialogue, message);
+			}
+		}
 	}
 
-
-	// On ferme la ressource avant de quitter
 	close(socketEcoute);
 	return 0;
 }

@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-void read_message(int socket, char *message, int size);
-void send_message(int socket, char *message);
+int read_message(int socket, char *message, int size);
+int send_message(int socket, char *message);
 
 #endif
