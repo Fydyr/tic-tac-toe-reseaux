@@ -15,37 +15,14 @@
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
-int socketDialogue;
-int socketEcoute;
-
-
-void handle_signal(int sig)
-{
-	printf("\nSignal reçu (%d). Fermeture du serveur...\n", sig);
-
-	if (socketDialogue >= 0)
-	{
-		close(socketDialogue);
-		printf("Socket de dialogue fermée.\n");
-	}
-	if (socketEcoute >= 0)
-	{
-		close(socketEcoute);
-		printf("Socket d'écoute fermée.\n");
-	}
-
-	sleep(2);
-
-	exit(EXIT_SUCCESS);
-}
-
 int main(int argc, char *argv[])
 {
-
+	int socketDialogue,socketDialogue2;
+	int socketEcoute;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
 
-	struct sockaddr_in pointDeRencontreDistant;
+	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
 	int nb_left;					  /* nb de cases restantes */
@@ -83,10 +60,21 @@ int main(int argc, char *argv[])
 			exit(-4);
 		}
 
+		socketDialogue2 = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant2, &addrLength);
+		if (socketDialogue2 < 0)
+		{
+			perror("accept");
+			close(socketDialogue2);
+			close(socketEcoute);
+			exit(-4);
+		}
+
 		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char));
+		read_message(socketDialogue2, messageRecu, LG_MESSAGE * sizeof(char));
 
 		strcpy(buffer, "start");
 		send_message(socketDialogue, buffer);
+		send_message(socketDialogue2,buffer);
 
 		// Initialization of the grid
 		char grid[GRID_CELL];
@@ -96,7 +84,7 @@ int main(int argc, char *argv[])
 		while (run_game)
 		{ 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
-
+			
 			if (message[0] - '0' < 1)
 			{
 				strcpy(message, "ERROR"); 
