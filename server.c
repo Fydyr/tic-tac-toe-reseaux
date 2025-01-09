@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
 	// boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment !
 	while (1)
 	{
+		memset(messageRecu, 'a', LG_MESSAGE*sizeof(char));
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant
@@ -203,9 +204,9 @@ int main(int argc, char *argv[])
 					}
 					else
 					{
-						int random_nb = (rand() % GRID_CELL) + 1;
+						int random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
 						while (is_occupied(grid, random_nb)){
-							random_nb = (rand() % GRID_CELL) + 1;
+							random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
 						}
 
 						update_grid(random_nb, grid, 'O');
