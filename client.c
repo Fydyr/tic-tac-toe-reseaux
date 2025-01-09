@@ -70,11 +70,10 @@ int main(int argc, char *argv[])
 	// Loop on the interaction between client and server
 	while (1)
 	{
+		printf("Player %c's turn", (player == 'O') ? 'X' : 'O');
 		// Wait if player is 'O'
 		if (first_turn_block == 0)
 		{
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-			first_turn_block = 0;
 			
 			int chosenCell;
 			printf("Choose a cell: ");
@@ -112,17 +111,20 @@ int main(int argc, char *argv[])
 			update_grid(chosenCell, grid, message[1]);
 			show_grid(grid);
 		}
+		else
+		{
+			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+			first_turn_block = 0;
+		}
 
 		memset(message, 0, sizeof(message));
-		printf("Player %c's turn", player);
-
 		read_message(descriptorSocket, message, sizeof(message), 0);
 
 		if (message[0] == 'X' || message[0] == 'O')
 		{
 			if (strcmp(message, "XWIN") == 0)
 			{
-				printf("The player has won !\n");
+				printf("The player X has won !\n");
 				close(descriptorSocket);
 				return 0;
 			}
@@ -137,7 +139,7 @@ int main(int argc, char *argv[])
 				read_message(descriptorSocket, message, sizeof(message), 0);
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
-				printf("The server has won !\n");
+				printf("The player O has won !\n");
 				close(descriptorSocket);
 				return 0;
 			}
