@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			if (chosenCell > 1 || chosenCell < 9)
+			if (chosenCell < 1 || chosenCell > 9)
 			{
 				printf("Value too big.\nPlease enter a single number.\n");
 				continue;
