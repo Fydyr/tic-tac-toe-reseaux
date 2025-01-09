@@ -1,3 +1,11 @@
+/**
+ * @author
+ * Behani Julien
+ * Mallevaey Adrien
+ * Fournier Enzo
+ * Alluin Edouard
+ */
+
 #include "socket_management.h"
 #include <stdio.h>
 #include <stdlib.h>
