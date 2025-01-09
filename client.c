@@ -6,8 +6,8 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "socket_management.h"
-#include "tictactoe.h"
+#include "include/socket_management.h"
+#include "include/tictactoe.h"
 
 #define LG_MESSAGE 256
 

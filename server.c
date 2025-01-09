@@ -8,8 +8,8 @@
 #include <arpa/inet.h>	/* pour htons et inet_aton */
 #include <signal.h>
 #include <time.h>
-#include "socket_management.h"
-#include "tictactoe.h"
+#include "include/socket_management.h"
+#include "include/tictactoe.h"
 
 #define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
