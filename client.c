@@ -23,7 +23,10 @@ int main(int argc, char *argv[])
 	int descriptorSocket;
 	struct sockaddr_in sockaddrDistant;
 
-	char buffer[] = "Demande de partie"; 
+	char buffer[] = "Demande de partie";
+	char message[10];
+	char player;
+	int first_turn_block = 0;
 
 	char ip_dest[16];
 	int port_dest;
@@ -44,7 +47,14 @@ int main(int argc, char *argv[])
 
 	send_message(descriptorSocket, buffer);
 
-	read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char));
+	read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+
+	printf("GAME START\n");
+
+	read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+
+	printf("Player : %s\n\n", buffer);
+	player = buffer[0];
 
 	// Initialization of the grid
 	char grid[GRID_CELL];
@@ -52,47 +62,61 @@ int main(int argc, char *argv[])
 	set_empty_grid(grid);
 	show_grid(grid);
 
+	if (player == 'O')
+	{
+		first_turn_block = 1;
+		printf("Player X's turn");
+	}
 	// Loop on the interaction between client and server
 	while (1)
 	{
-		int chosenCell;
-		printf("Choose a cell: ");
-
-		// While is not a number
-		while (1) {
-			printf("Please enter a number between 1 and 9: ");
-
-			// Check if the input is valid
-			if (scanf("%d", &chosenCell) != 1) {
-				printf("Invalid input.\nPlease enter a valid number.\n");
-				while (getchar() != '\n'); // Clear the buffer
-				continue;
-			}
-
-			if (chosenCell < 1 || chosenCell > 9)
-			{
-				printf("Value too big.\nPlease enter a single number.\n");
-				continue;
-			}
+		// Wait if player is 'O'
+		if (first_turn_block == 0)
+		{
+			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+			first_turn_block = 0;
 			
-			if (is_occupied(grid, chosenCell)){
-				printf("Cell already occupied.\nPlease choose an empty cell.\n");
-				continue;
+			int chosenCell;
+			printf("Choose a cell: ");
+
+			// While is not a number
+			while (1) {
+				printf("Please enter a number between 1 and 9: ");
+
+				// Check if the input is valid
+				if (scanf("%d", &chosenCell) != 1) {
+					printf("Invalid input.\nPlease enter a valid number.\n");
+					while (getchar() != '\n'); // Clear the buffer
+					continue;
+				}
+
+				if (chosenCell < 1 || chosenCell > 9)
+				{
+					printf("Value too big.\nPlease enter a single number.\n");
+					continue;
+				}
+				
+				if (is_occupied(grid, chosenCell)){
+					printf("Cell already occupied.\nPlease choose an empty cell.\n");
+					continue;
+				}
+				// If everything is correct, exit the loop
+				break;
 			}
-			// If everything is correct, exit the loop
-			break;
-    	}
 
-		char message[10] = {chosenCell + '0', 'X'};
+			message[0] = chosenCell + '0';
+			message[1] = player;
 
-		send_message(descriptorSocket, message);
+			send_message(descriptorSocket, message);
 
-		update_grid(chosenCell, grid, message[1]);
-		show_grid(grid);
+			update_grid(chosenCell, grid, message[1]);
+			show_grid(grid);
+		}
 
 		memset(message, 0, sizeof(message));
+		printf("Player %c's turn", player);
 
-		read_message(descriptorSocket, message, sizeof(message));
+		read_message(descriptorSocket, message, sizeof(message), 0);
 
 		if (message[0] == 'X' || message[0] == 'O')
 		{
@@ -110,7 +134,7 @@ int main(int argc, char *argv[])
 			}
 			else if (strcmp(message, "OWIN") == 0)
 			{
-				read_message(descriptorSocket, message, sizeof(message));
+				read_message(descriptorSocket, message, sizeof(message), 0);
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
 				printf("The server has won !\n");
@@ -119,7 +143,7 @@ int main(int argc, char *argv[])
 			}
 			else if (strcmp(message, "OEND") == 0)
 			{
-				read_message(descriptorSocket, message, sizeof(message));
+				read_message(descriptorSocket, message, sizeof(message), 0);
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
 				printf("Game over\nNo winner !\n");
@@ -129,14 +153,14 @@ int main(int argc, char *argv[])
 		}
 		else if (strcmp(message, "CONTINUE") == 0)
 		{
-			read_message(descriptorSocket, message, sizeof(message));
+			read_message(descriptorSocket, message, sizeof(message), 0);
 			update_grid(message[0] - '0', grid, message[1]);
 			show_grid(grid);
 		}
 		else if (strcmp(message, "ERROR") == 0)
 		{
 			printf("Erreur\n");
-			read_message(descriptorSocket, message, sizeof(message));
+			read_message(descriptorSocket, message, sizeof(message), 0);
 			if (message[0] == '1')
 			{
 				printf("The number is inferior to what can be choosen\nThe number must be between 1 and 9. Try again.\n");

@@ -23,12 +23,64 @@
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
+struct Tuple {
+    int outcome;
+    char position[LG_MESSAGE];
+};
+
+struct Tuple tour_joueur(int socketDialogue, char joueur, char grid[GRID_CELL])
+{
+	int next = 0;					/* si la partie continue */
+	int winner = 0;					  /* si le joueur actuelle à gagné */
+	char message[LG_MESSAGE];
+	struct Tuple result;
+	int nb_left;					  /* nb de cases restantes */
+
+
+	int bytesRead = read_message(socketDialogue, message, sizeof(message), 0);
+	
+	if (message[0] - '0' < 1)
+	{
+		next = -1;
+	}
+	else if (message[0] - '0' > 9)
+	{
+		next = -2;
+	}
+	else
+	{
+		if ( bytesRead > 0)
+		{
+
+			update_grid(message[0] - '0', grid, message[1]);
+			show_grid(grid);
+
+			winner = is_winner('X', grid);
+			nb_left = is_full(grid);
+
+			if (nb_left == 0 || winner == 1)
+			{
+				if (winner == 1)
+				{
+					next = 1;
+				}
+				else
+				{
+					next = 2;
+				}
+			}
+		}
+	}
+	result.outcome = next;
+	strcpy(result.position, message);
+	return result;
+}
+
 void game(int socketDialogue, int socketDialogue2)
 {
-	int nb_left;					  /* nb de cases restantes */
-	int winner_x = 0;					  /* si le joueur X à gagné */
-	int winner_O = 0;					  /* si le joueur O à gagné */
+	struct Tuple result_turn;					  /* resultat du tour du joueur */
 	int run_game;
+	int first_turn = 1;
 	char message[LG_MESSAGE];
 
 	// Initialization of the grid
@@ -38,20 +90,10 @@ void game(int socketDialogue, int socketDialogue2)
 
 	while (run_game)
 	{ 
-		int bytesRead = read_message(socketDialogue, message, sizeof(message), 0);
-		
-		if (message[0] - '0' < 1)
+		result_turn = tour_joueur(socketDialogue, 'X', grid);
+		switch (result_turn.outcome)
 		{
-			strcpy(message, "ERROR"); 
-			send_message(socketDialogue, message);
-
-			memset(&message, 0x00, 9);
-			message[0] = '1'; 
-
-			send_message(socketDialogue, message);
-		}
-		else if (message[0] - '0' > 9)
-		{
+		case -2:
 			strcpy(message, "ERROR"); 
 			send_message(socketDialogue, message);
 
@@ -59,89 +101,130 @@ void game(int socketDialogue, int socketDialogue2)
 			message[0] = '2'; 
 
 			send_message(socketDialogue, message);
-		}
-		else
-		{
-			if ( bytesRead > 0)
+			break;
+		
+		case -1:
+			strcpy(message, "ERROR"); 
+			send_message(socketDialogue, message);
+
+			memset(&message, 0x00, 9);
+			message[0] = '1'; 
+
+			send_message(socketDialogue, message);
+			break;
+
+		case 0:
+			if(first_turn == 1)
 			{
+				strcpy(message, "START");
+				send_message(socketDialogue2, message);
+				first_turn = 0;
+			}
+			strcpy(message, "CONTINUE"); 
+			send_message(socketDialogue2, message);
 
-				update_grid(message[0] - '0', grid, message[1]);
-				show_grid(grid);
+			memset(&message, 0x00, 9);
+			strcpy(message, result_turn.position);
 
-				winner_x = is_winner('X', grid);
-				nb_left = is_full(grid);
+			send_message(socketDialogue2, message);
+			break;
 
-				if (nb_left == 0 || winner_x == 1)
-				{
-					if (winner_x == 1)
-					{
-						strcpy(message, "XWIN"); 
-						send_message(socketDialogue, message);
-						close(socketDialogue);
-						run_game = 0;
-					}
-					else
-					{
-						strcpy(message, "XEND"); 
-						send_message(socketDialogue, message);
-						close(socketDialogue);
-						run_game = 0;
-					}
-				}
-				else
-				{
-					int random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
-					while (is_occupied(grid, random_nb)){
-						random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
-					}
+		case 1:
+			strcpy(message, "XWIN"); 
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
+			close(socketDialogue);
 
-					update_grid(random_nb, grid, 'O');
-					show_grid(grid);
+			memset(&message, 0x00, 9);
+			strcpy(message, result_turn.position);
 
-					winner_O = is_winner('O', grid);
-					nb_left = is_full(grid);
+			send_message(socketDialogue2, message);
+			close(socketDialogue2);
+			run_game = 0;
+			break;
+		
+		case 2:
+			strcpy(message, "XEND"); 
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
+			close(socketDialogue);
 
-					if (nb_left == 0 || winner_O == 1)
-					{
-						if (winner_O == 1)
-						{
-							strcpy(message, "OWIN"); 
-							send_message(socketDialogue, message);
+			memset(&message, 0x00, 9);
+			strcpy(message, result_turn.position);
 
-							memset(&message, 0x00, 9);
-							message[0] = random_nb + '0'; 
-							message[1] = 'O';
+			send_message(socketDialogue2, message);
+			close(socketDialogue2);
+			run_game = 0;
+			break;
 
-							send_message(socketDialogue, message);
-							close(socketDialogue);
-							run_game = 0;
-						}
-						else
-						{
-							strcpy(message, "OEND"); 
-							send_message(socketDialogue, message);
+		default:
+			break;
+		}
 
-							memset(&message, 0x00, 9);
-							message[0] = random_nb + '0'; 
-							message[1] = 'O';
+		if (result_turn.outcome == 0){
+			result_turn = tour_joueur(socketDialogue2, 'O', grid);
+			switch (result_turn.outcome)
+			{
+			case -2:
+				strcpy(message, "ERROR"); 
+				send_message(socketDialogue2, message);
 
-							send_message(socketDialogue, message);
-							close(socketDialogue);
-							run_game = 0;
-						}
-					}
-					else
-					{
-						strcpy(message, "CONTINUE"); 
-						send_message(socketDialogue, message);
+				memset(&message, 0x00, 9);
+				message[0] = '2'; 
 
-						memset(&message, 0x00, 9);
-						message[0] = random_nb + '0'; 
-						message[1] = 'O';
+				send_message(socketDialogue2, message);
+				break;
+			
+			case -1:
+				strcpy(message, "ERROR"); 
+				send_message(socketDialogue2, message);
 
-						send_message(socketDialogue, message);
-					}
-				}
+				memset(&message, 0x00, 9);
+				message[0] = '1'; 
+
+				send_message(socketDialogue2, message);
+				break;
+
+			case 0:
+				strcpy(message, "CONTINUE"); 
+				send_message(socketDialogue, message);
+
+				memset(&message, 0x00, 9);
+				strcpy(message, result_turn.position);
+
+				send_message(socketDialogue, message);
+				break;
+
+			case 1:
+				strcpy(message, "OWIN"); 
+				send_message(socketDialogue2, message);
+				send_message(socketDialogue, message);
+				close(socketDialogue2);
+
+				memset(&message, 0x00, 9);
+				strcpy(message, result_turn.position);
+
+				send_message(socketDialogue, message);
+				close(socketDialogue);
+				run_game = 0;
+				break;
+			
+			case 2:
+				strcpy(message, "OEND"); 
+				send_message(socketDialogue2, message);
+				send_message(socketDialogue, message);
+				close(socketDialogue2);
+
+				memset(&message, 0x00, 9);
+				strcpy(message, result_turn.position);
+
+				send_message(socketDialogue, message);
+				close(socketDialogue);
+				run_game = 0;
+				break;
+
+			default:
+				break;
 			}
 		}
 	}
@@ -202,6 +285,14 @@ int main(int argc, char *argv[])
 		strcpy(buffer, "start");
 		send_message(socketDialogue, buffer);
 		send_message(socketDialogue2,buffer);
+
+		memset(&buffer, 0x00, 9);
+		strcpy(buffer, "X");
+		send_message(socketDialogue, buffer);
+
+		memset(&buffer, 0x00, 9);
+		strcpy(buffer, "O");
+		send_message(socketDialogue2, buffer);
 
 		game(socketDialogue, socketDialogue2);
 	}
