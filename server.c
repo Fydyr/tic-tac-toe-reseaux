@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
 	int nb_left;					  /* nb de cases restantes */
 	int winner_x = 0;					  /* si le joueur X à gagné */
 	int winner_O = 0;					  /* si le joueur O à gagné */
+	int run_game;
+	char message[LG_MESSAGE];
 
 	srand(time(NULL));
 
@@ -149,11 +151,10 @@ int main(int argc, char *argv[])
 		// Initialization of the grid
 		char grid[GRID_CELL];
 		set_empty_grid(grid);
+		run_game = 1;
 
-		while (1)
-		{
-			char message[10]; 
-
+		while (run_game)
+		{ 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
 
 			if (message[0] - '0' < 1)
@@ -194,12 +195,14 @@ int main(int argc, char *argv[])
 							strcpy(message, "XWIN"); 
 							send_message(socketDialogue, message);
 							close(socketDialogue);
+							run_game = 0;
 						}
 						else
 						{
 							strcpy(message, "XEND"); 
 							send_message(socketDialogue, message);
 							close(socketDialogue);
+							run_game = 0;
 						}
 					}
 					else
@@ -228,6 +231,7 @@ int main(int argc, char *argv[])
 
 								send_message(socketDialogue, message);
 								close(socketDialogue);
+								run_game = 0;
 							}
 							else
 							{
@@ -240,6 +244,7 @@ int main(int argc, char *argv[])
 
 								send_message(socketDialogue, message);
 								close(socketDialogue);
+								run_game = 0;
 							}
 						}
 						else

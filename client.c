@@ -177,4 +177,7 @@ int main(int argc, char *argv[])
 			}
         }
 	}
+	
+	close(descripteurSocket);
+	return 0;
 }
