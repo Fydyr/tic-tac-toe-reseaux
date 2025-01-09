@@ -11,7 +11,8 @@
 #include "socket_management.h"
 #include "tictactoe.h"
 
-#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
 int socketDialogue;
@@ -82,13 +83,27 @@ int main(int argc, char *argv[])
 	memset(&pointDeRencontreLocal, 0x00, longueurAdresse);
 	pointDeRencontreLocal.sin_family = PF_INET;
 	pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY); // attaché à toutes les interfaces locales disponibles
-	pointDeRencontreLocal.sin_port = htons(PORT);			   // = 5001 ou plus
 
-	// On demande l’attachement local de la socket
-	if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
-	{
-		perror("bind");
-		exit(-2);
+	//Changement automatique de port si déjà en utilisation
+	int current_port = MIN_PORT;
+	while(1){
+		pointDeRencontreLocal.sin_port = htons(current_port);			   // = 5001 ou plus
+
+		// On demande l’attachement local de la socket
+		if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
+		{
+			current_port++;
+		}
+		else if (current_port > MAX_PORT)
+		{
+			perror("bind");
+			exit(-2);
+		}
+		else
+		{
+			printf("Current Port : %d\n", current_port);
+			break;
+		}
 	}
 	printf("Socket attachée avec succès !\n");
 
@@ -121,7 +136,7 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue, buffer);
 
 		// Initialization of the grid
-		char grid[GRID_CASE];
+		char grid[GRID_CELL];
 		set_empty_grid(grid);
 
 		while (1)
@@ -176,7 +191,10 @@ int main(int argc, char *argv[])
 					}
 					else
 					{
-						int random_nb = (rand() % GRID_CASE) + 1;
+						int random_nb = (rand() % GRID_CELL) + 1;
+						while (is_occupied(grid, random_nb)){
+							random_nb = (rand() % GRID_CELL) + 1;
+						}
 
 						update_grid(random_nb, grid, 'O');
 						show_grid(grid);

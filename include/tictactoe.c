@@ -4,20 +4,20 @@
 #include <string.h>
 #include <execinfo.h>
 
-void set_empty_grid(char grid[GRID_CASE])
+void set_empty_grid(char grid[GRID_CELL])
 {
-    memset(grid, ' ', GRID_CASE * sizeof(char));
+    memset(grid, ' ', GRID_CELL * sizeof(char));
 }
 
-void show_grid(const char grid[GRID_CASE])
+void show_grid(const char grid[GRID_CELL])
 {
-    for (int i = 0; i < GRID_CASE; i++)
+    for (int i = 0; i < GRID_CELL; i++)
     {
         printf(" %c ", grid[i] ? grid[i] : ' ');
         if ((i + 1) % GRID_SIZE == 0)
         {
             printf("\n");
-            if (i < GRID_CASE - GRID_SIZE)
+            if (i < GRID_CELL - GRID_SIZE)
             {
                 for (int j = 0; j < GRID_SIZE - 1; j++)
                 {
@@ -34,9 +34,9 @@ void show_grid(const char grid[GRID_CASE])
     printf("\n");
 }
 
-void update_grid(const int i, char grid[GRID_CASE], const char symbol)
+void update_grid(const int i, char grid[GRID_CELL], const char symbol)
 {
-    if (i >= 1 && i <= GRID_CASE)
+    if (i >= 1 && i <= GRID_CELL)
     {
         grid[i - 1] = symbol;
     }
@@ -47,11 +47,11 @@ void update_grid(const int i, char grid[GRID_CASE], const char symbol)
     }
 }
 
-int is_full(const char grid[GRID_CASE]){
+int is_full(const char grid[GRID_CELL]){
 	int i, nb;
 	nb = 0;
 
-	for (i = 0; i < GRID_CASE; i++)
+	for (i = 0; i < GRID_CELL; i++)
 	{
 		if (grid[i] == ' ')
 		{
@@ -62,16 +62,16 @@ int is_full(const char grid[GRID_CASE]){
 	return nb;
 }
 
-int is_winner(char player, const char grid[GRID_CASE]){
+int is_winner(char player, const char grid[GRID_CELL]){
 	int i, result;
 
-    for (i = 0; i < GRID_CASE; i=i+3) {
+    for (i = 0; i < GRID_CELL; i=i+3) {
         if (grid[i] == player && grid[i+1] == player && grid[i+2] == player) {
             result = 1;
         }
     }
     // Check columns
-    for (i = 0; i < GRID_CASE; i++) {
+    for (i = 0; i < GRID_CELL; i++) {
         if (grid[i] == player && grid[i+3] == player && grid[i+6] == player) {
             result = 1;
         }
@@ -81,4 +81,8 @@ int is_winner(char player, const char grid[GRID_CASE]){
             result = 1;
     }
     return result;
+}
+
+int is_occupied(const char grid[GRID_CELL], int cell) {
+    return grid[cell - 1] != ' ';
 }

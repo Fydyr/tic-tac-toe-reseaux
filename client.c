@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 	read_message(descripteurSocket, buffer, LG_MESSAGE * sizeof(char));
 
 	// Initialization of the grid
-	char grid[GRID_CASE];
+	char grid[GRID_CELL];
 
 	set_empty_grid(grid);
 	show_grid(grid);
@@ -85,34 +85,39 @@ int main(int argc, char *argv[])
 	// Loop on the interaction between client and server
 	while (1)
 	{
-		int chosenCase;
-		printf("Choose a case: ");
+		int chosenCell;
+		printf("Choose a cell: ");
 
 		// While is not a number
 		while (1) {
 			printf("Please enter a number between 1 and 9: ");
 
 			// Check if the input is valid
-			if (scanf("%d", &chosenCase) != 1) {
-				printf("Invalid input. Please enter a valid number.\n");
+			if (scanf("%d", &chosenCell) != 1) {
+				printf("Invalid input.\nPlease enter a valid number.\n");
 				while (getchar() != '\n'); // Clear the buffer
 				continue;
 			}
 
-			if (chosenCase > 1 || chosenCase < 9)
+			if (chosenCell > 1 || chosenCell < 9)
 			{
-				printf("Value too big. Please enter a single number.\n");
+				printf("Value too big.\nPlease enter a single number.\n");
+				continue;
+			}
+			
+			if (is_occupied(grid, chosenCell)){
+				printf("Cell already occupied.\nPlease choose an empty cell.\n");
 				continue;
 			}
 			// If everything is correct, exit the loop
 			break;
     	}
 
-		char message[10] = {chosenCase + '0', 'X'}; 
+		char message[10] = {chosenCell + '0', 'X'};
 
 		send_message(descripteurSocket, message);
 
-		update_grid(chosenCase, grid, message[1]);
+		update_grid(chosenCell, grid, message[1]);
 		show_grid(grid);
 
 		memset(message, 0, sizeof(message));

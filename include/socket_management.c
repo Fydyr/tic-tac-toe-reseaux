@@ -50,9 +50,9 @@ int send_message(int socket, char *message)
 				close(socket);
 				exit(-3);
 			case 0 : /* socket is closed */
-				  fprintf(stderr, "The socket has been closed !\n\n");
-				  close(socket);
-                  return 0;
+				fprintf(stderr, "The socket has been closed !\n\n");
+			    close(socket);
+                return 0;
 			default: /* envoi de n octets */
 				printf("Sending responses : %s (%d bits)\n\n", message, state);
                 return 1;
