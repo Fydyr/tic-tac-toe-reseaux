@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			if (chosenCase > 9)
+			if (chosenCase > 1 || chosenCase < 9)
 			{
 				printf("Value too big. Please enter a single number.\n");
 				continue;
