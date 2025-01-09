@@ -42,7 +42,7 @@ void handle_signal(int sig)
 int main(int argc, char *argv[])
 {
 
-	struct sockaddr_in pointDeRencontreLocal;
+	struct sockaddr_in6 pointDeRencontreLocal;
 	socklen_t longueurAdresse;
 
 	struct sockaddr_in pointDeRencontreDistant;
@@ -63,31 +63,41 @@ int main(int argc, char *argv[])
 	if (signal(SIGHUP, handle_signal) == SIG_ERR)
 	{
 		perror("signal");
+		close(socketEcoute);
 		exit(EXIT_FAILURE);
 	}
 
 	// Crée un socket de communication
-	socketEcoute = socket(AF_INET, SOCK_STREAM, 0);
-	// Teste la valeur renvoyée par l’appel système socket()
-	if (socketEcoute < 0)
+	if ((socketEcoute = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
 	{
 		perror("socket"); // Affiche le message d’erreur
+		close(socketEcoute);
 		exit(-1);		  // On sort en indiquant un code erreur
 	}
 	printf("Socket créée avec succès ! (%d)\n", socketEcoute); // On prépare l’adresse d’attachement locale
+
+	//Permettre l'utilisation de l'ipv4 et ipv6 simultanée
+	int opt = 0;
+	if (setsockopt(socketEcoute, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) < 0)
+	{
+		perror("setsockopt");
+		close(socketEcoute);
+		exit(-1);
+	}
+	printf("Socket IPV4 / IPV6\n");
 
 	// Remplissage de sockaddrDistant (structure sockaddr_in identifiant le point d'écoute local)
 	longueurAdresse = sizeof(pointDeRencontreLocal);
 	// memset sert à faire une copie d'un octet n fois à partir d'une adresse mémoire donnée
 	// ici l'octet 0 est recopié longueurAdresse fois à partir de l'adresse &pointDeRencontreLocal
 	memset(&pointDeRencontreLocal, 0x00, longueurAdresse);
-	pointDeRencontreLocal.sin_family = PF_INET;
-	pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY); // attaché à toutes les interfaces locales disponibles
+	pointDeRencontreLocal.sin6_family = AF_INET6;
+	pointDeRencontreLocal.sin6_addr = in6addr_any; // attaché à toutes les interfaces locales disponibles
 
 	//Changement automatique de port si déjà en utilisation
 	int current_port = MIN_PORT;
 	while(1){
-		pointDeRencontreLocal.sin_port = htons(current_port);			   // = 5001 ou plus
+		pointDeRencontreLocal.sin6_port = htons(current_port);			   // = 5001 ou plus
 
 		// On demande l’attachement local de la socket
 		if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
