@@ -8,8 +8,8 @@
 #include <arpa/inet.h>	/* pour htons et inet_aton */
 #include <signal.h>
 #include <time.h>
-#include "socket_management.h"
-#include "tictactoe.h"
+#include "include/socket_management.h"
+#include "include/tictactoe.h"
 
 #define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
@@ -51,12 +51,14 @@ int main(int argc, char *argv[])
 	int nb_left;					  /* nb de cases restantes */
 	int winner_x = 0;					  /* si le joueur X à gagné */
 	int winner_O = 0;					  /* si le joueur O à gagné */
+	int run_game;
+	char message[LG_MESSAGE];
 
 	srand(time(NULL));
 
 	socketEcoute = create_listen_socket(PORT,&pointDeRencontreLocal);
 	addrLength = sizeof(pointDeRencontreLocal);
-	
+
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
 	if (listen(socketEcoute, 5) < 0)
 	{
@@ -68,6 +70,7 @@ int main(int argc, char *argv[])
 	// boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment !
 	while (1)
 	{
+		memset(messageRecu, 'a', LG_MESSAGE*sizeof(char));
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant
@@ -88,11 +91,10 @@ int main(int argc, char *argv[])
 		// Initialization of the grid
 		char grid[GRID_CELL];
 		set_empty_grid(grid);
+		run_game = 1;
 
-		while (1)
-		{
-			char message[10]; 
-
+		while (run_game)
+		{ 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
 
 			if (message[0] - '0' < 1)
@@ -132,16 +134,20 @@ int main(int argc, char *argv[])
 						{
 							strcpy(message, "XWIN"); 
 							send_message(socketDialogue, message);
+							close(socketDialogue);
+							run_game = 0;
 						}
 						else
 						{
 							strcpy(message, "XEND"); 
 							send_message(socketDialogue, message);
+							close(socketDialogue);
+							run_game = 0;
 						}
 					}
 					else
 					{
-						int random_nb = (rand() % GRID_CELL) + 1;
+						int random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
 						while (is_occupied(grid, random_nb)){
 							random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
 						}
@@ -164,6 +170,8 @@ int main(int argc, char *argv[])
 								message[1] = 'O';
 
 								send_message(socketDialogue, message);
+								close(socketDialogue);
+								run_game = 0;
 							}
 							else
 							{
@@ -175,6 +183,8 @@ int main(int argc, char *argv[])
 								message[1] = 'O';
 
 								send_message(socketDialogue, message);
+								close(socketDialogue);
+								run_game = 0;
 							}
 						}
 						else
