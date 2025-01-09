@@ -11,7 +11,7 @@
 #include "socket_management.h"
 #include "tictactoe.h"
 
-#define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 {
 
 	struct sockaddr_in pointDeRencontreLocal;
-	socklen_t longueurAdresse;
+	socklen_t addrLength;
 
 	struct sockaddr_in pointDeRencontreDistant;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
@@ -54,59 +54,9 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	// Check if the program is CTRL-C
-	// if (signal(SIGINT, handle_signal) == SIG_ERR) {
-	//    perror("signal");
-	//    exit(EXIT_FAILURE);
-	//}
-	// Check if the program window is close
-	if (signal(SIGHUP, handle_signal) == SIG_ERR)
-	{
-		perror("signal");
-		exit(EXIT_FAILURE);
-	}
-
-	// Crée un socket de communication
-	socketEcoute = socket(AF_INET, SOCK_STREAM, 0);
-	// Teste la valeur renvoyée par l’appel système socket()
-	if (socketEcoute < 0)
-	{
-		perror("socket"); // Affiche le message d’erreur
-		exit(-1);		  // On sort en indiquant un code erreur
-	}
-	printf("Socket créée avec succès ! (%d)\n", socketEcoute); // On prépare l’adresse d’attachement locale
-
-	// Remplissage de sockaddrDistant (structure sockaddr_in identifiant le point d'écoute local)
-	longueurAdresse = sizeof(pointDeRencontreLocal);
-	// memset sert à faire une copie d'un octet n fois à partir d'une adresse mémoire donnée
-	// ici l'octet 0 est recopié longueurAdresse fois à partir de l'adresse &pointDeRencontreLocal
-	memset(&pointDeRencontreLocal, 0x00, longueurAdresse);
-	pointDeRencontreLocal.sin_family = PF_INET;
-	pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY); // attaché à toutes les interfaces locales disponibles
-
-	//Changement automatique de port si déjà en utilisation
-	int current_port = MIN_PORT;
-	while(1){
-		pointDeRencontreLocal.sin_port = htons(current_port);			   // = 5001 ou plus
-
-		// On demande l’attachement local de la socket
-		if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
-		{
-			current_port++;
-		}
-		else if (current_port > MAX_PORT)
-		{
-			perror("bind");
-			exit(-2);
-		}
-		else
-		{
-			printf("Current Port : %d\n", current_port);
-			break;
-		}
-	}
-	printf("Socket attachée avec succès !\n");
-
+	socketEcoute = create_listen_socket(PORT,&pointDeRencontreLocal);
+	addrLength = sizeof(pointDeRencontreLocal);
+	
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
 	if (listen(socketEcoute, 5) < 0)
 	{
@@ -121,7 +71,7 @@ int main(int argc, char *argv[])
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant
-		socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
+		socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &addrLength);
 		if (socketDialogue < 0)
 		{
 			perror("accept");
@@ -193,7 +143,7 @@ int main(int argc, char *argv[])
 					{
 						int random_nb = (rand() % GRID_CELL) + 1;
 						while (is_occupied(grid, random_nb)){
-							random_nb = (rand() % GRID_CELL) + 1;
+							random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
 						}
 
 						update_grid(random_nb, grid, 'O');
