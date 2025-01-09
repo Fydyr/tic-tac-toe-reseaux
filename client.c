@@ -141,6 +141,6 @@ int main(int argc, char *argv[])
         }
 	}
 	
-	close(descripteurSocket);
+	close(descriptorSocket);
 	return 0;
 }
