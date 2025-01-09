@@ -73,7 +73,7 @@ int create_communication_socket(const int port, const char ip[16], struct sockad
     return descriptorSocket;
 }
 
-int read_message(int socket, char *message, int size) {
+int read_message(int socket, char *message, int size, int read_only) {
     int state;
 
     if (message == NULL) {
@@ -83,7 +83,7 @@ int read_message(int socket, char *message, int size) {
     }
 
     // Get data from the socket
-    state = recv(socket, message, size - 1, 0);
+    state = recv(socket, message, size - 1, (read_only == 1) ? MSG_PEEK : 0);
 
     switch (state) {
         case -1: // An error has occurred

@@ -32,7 +32,7 @@ int create_communication_socket(const int port,const char ip[16], struct sockadd
  * @param size The size of the message
  * @return int The state of the read operation
  */
-int read_message(int socket, char *message, int size);
+int read_message(int socket, char *message, int size, int read_only);
 
 /**
  * Send a message through a socket

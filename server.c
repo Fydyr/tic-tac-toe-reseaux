@@ -220,8 +220,8 @@ int main(int argc, char *argv[])
 			exit(-4);
 		}
 
-		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char));
-		read_message(socketDialogue2, messageRecu, LG_MESSAGE * sizeof(char));
+		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char), 0);
+		read_message(socketDialogue2, messageRecu, LG_MESSAGE * sizeof(char), 0);
 
 		strcpy(buffer, "start");
 		send_message(socketDialogue, buffer);
