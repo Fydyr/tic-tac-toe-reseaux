@@ -3,6 +3,79 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+/**
+ * Create a socket that listens on a specified port.
+ * @param port the port to set
+ * @param localEncounterPoint structure to store the address and port information
+ * @return The listen socket descriptor
+ */
+int create_listen_socket(const int port, struct sockaddr_in *localEncounterPoint) {
+    
+    // Creation of listening socket
+    int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenSocket < 0) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize sockaddr_in structure
+    socklen_t addrLength = sizeof(*localEncounterPoint);
+    memset(localEncounterPoint, 0, addrLength);
+    localEncounterPoint->sin_family = AF_INET;
+    localEncounterPoint->sin_addr.s_addr = htonl(INADDR_ANY);
+    localEncounterPoint->sin_port = htons(port);
+
+    // Associate socket with specified port
+    if (bind(listenSocket, (struct sockaddr *)localEncounterPoint, addrLength) < 0) {
+        perror("bind");
+        close(listenSocket);
+        exit(EXIT_FAILURE);
+    }
+
+    return listenSocket;
+}
+
+/**
+ * Create a socket and connect to a distant server using a given port and IP address.
+ * @param port the port to connect to
+ * @param ip the IP address of the distant server
+ * @param distantAddrSocket structure to store the address and port information
+ * @return The connected socket descriptor
+ */
+int create_communication_socket(const int port, const char ip[16], struct sockaddr_in *distantAddrSocket)
+{
+    int descriptorSocket;
+    socklen_t addrLength;
+
+    descriptorSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (descriptorSocket < 0)
+    {
+        perror("Error occuring during the creation of the socket...");
+        exit(EXIT_FAILURE);
+    }
+    printf("Socket created! (%d)\n", descriptorSocket);
+
+    addrLength = sizeof(*distantAddrSocket);
+    memset(distantAddrSocket, 0, addrLength);
+
+    distantAddrSocket->sin_family = AF_INET;
+    distantAddrSocket->sin_port = htons(port);
+    inet_aton(ip, &distantAddrSocket->sin_addr);
+
+    if (connect(descriptorSocket, (struct sockaddr *)distantAddrSocket, addrLength) == -1)
+    {
+        perror("Connection error with the distant server...");
+        close(descriptorSocket);
+        exit(-2);
+    }
+    printf("Connection to the server %s:%d is successfull !\n", ip, port);
+
+    return descriptorSocket;
+}
 
 /**
  * Read a message from the socket
@@ -41,6 +114,12 @@ int read_message(int socket, char *message, int size) {
     }
 }
 
+/**
+ * Send a message through a socket
+ * @param socket The socket through which the message will be sent
+ * @param message The message to send
+ * @return int The status of the send operation
+ */
 int send_message(int socket, char *message)
 {
 	int state;
