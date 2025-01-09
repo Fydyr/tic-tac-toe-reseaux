@@ -1,3 +1,11 @@
+/**
+ * @author
+ * Behani Julien
+ * Mallevaey Adrien
+ * Fournier Enzo
+ * Alluin Edouard
+ */
+
 #include <stdio.h>
 #include <stdlib.h> /* pour exit */
 #include <unistd.h> /* pour read, write, close, sleep */
