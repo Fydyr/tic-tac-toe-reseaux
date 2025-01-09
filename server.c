@@ -192,11 +192,13 @@ int main(int argc, char *argv[])
 						{
 							strcpy(message, "XWIN"); 
 							send_message(socketDialogue, message);
+							close(socketDialogue);
 						}
 						else
 						{
 							strcpy(message, "XEND"); 
 							send_message(socketDialogue, message);
+							close(socketDialogue);
 						}
 					}
 					else
@@ -224,6 +226,7 @@ int main(int argc, char *argv[])
 								message[1] = 'O';
 
 								send_message(socketDialogue, message);
+								close(socketDialogue);
 							}
 							else
 							{
@@ -235,6 +238,7 @@ int main(int argc, char *argv[])
 								message[1] = 'O';
 
 								send_message(socketDialogue, message);
+								close(socketDialogue);
 							}
 						}
 						else
