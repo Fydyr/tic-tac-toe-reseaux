@@ -9,83 +9,14 @@
 #include <signal.h>
 #include <time.h>
 #include "socket_management.h"
+#include "tictactoe.h"
 
-#define PORT 5003 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define LG_MESSAGE 256
-#define GRID_SIZE 3
-#define GRID_CASE GRID_SIZE *GRID_SIZE
 
 int socketDialogue;
 int socketEcoute;
 
-void show_grid(const char grid[GRID_CASE])
-{
-	for (int i = 0; i < GRID_CASE; i++)
-	{
-		printf(" %c ", grid[i] ? grid[i] : ' ');
-		if ((i + 1) % GRID_SIZE == 0)
-		{
-			printf("\n");
-			if (i < GRID_CASE - GRID_SIZE)
-			{
-				for (int j = 0; j < GRID_SIZE - 1; j++)
-				{
-					printf("---+");
-				}
-				printf("---\n");
-			}
-		}
-		else
-		{
-			printf("|");
-		}
-	}
-	printf("\n");
-}
-
-void update_grid(const int i, char grid[GRID_CASE], const char symbol)
-{
-	grid[i-1] = symbol;
-}
-
-int check_full(const char *grid){
-	int i, nb;
-	nb = 0;
-
-	for (i = 0; i < GRID_CASE; i++)
-	{
-		if (grid[i] == ' ')
-		{
-			nb = nb + 1;
-		}
-	}
-
-	return nb;
-}
-
-int gagnant(char joueur, const char *grid){
-	int i, result;
-
-    for (i = 0; i < GRID_CASE; i=i+3) {
-        if (grid[i] == joueur && grid[i+1] == joueur && grid[i+2] == joueur) {
-            result = 1;
-        }
-    }
-
-    // Vérifier les colonnes
-    for (i = 0; i < GRID_CASE; i++) {
-        if (grid[i] == joueur && grid[i+3] == joueur && grid[i+6] == joueur) {
-            result = 1;
-        }
-    }
-
-    // Vérifier les diagonales
-    if ((grid[0] == joueur && grid[4] == joueur && grid[8] == joueur) || (grid[2] == joueur && grid[4] == joueur && grid[6] == joueur)) {
-            result = 1;
-    }
-
-    return result;
-}
 
 void handle_signal(int sig)
 {
@@ -151,7 +82,7 @@ int main(int argc, char *argv[])
 	memset(&pointDeRencontreLocal, 0x00, longueurAdresse);
 	pointDeRencontreLocal.sin_family = PF_INET;
 	pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY); // attaché à toutes les interfaces locales disponibles
-	pointDeRencontreLocal.sin_port = htons(PORT);			   // = 5000 ou plus
+	pointDeRencontreLocal.sin_port = htons(PORT);			   // = 5001 ou plus
 
 	// On demande l’attachement local de la socket
 	if ((bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse)) < 0)
@@ -191,10 +122,7 @@ int main(int argc, char *argv[])
 
 		// Initialization of the grid
 		char grid[GRID_CASE];
-		for (int i = 0; i < GRID_CASE; i++)
-		{
-			grid[i] = ' ';
-		}
+		set_empty_grid(grid);
 
 		while (1)
 		{
@@ -202,7 +130,7 @@ int main(int argc, char *argv[])
 
 			int bytesRead = read_message(socketDialogue, message, sizeof(message));
 
-			if (message[0] - '0' < 0)
+			if (message[0] - '0' < 1)
 			{
 				strcpy(message, "ERROR"); 
 				send_message(socketDialogue, message);
@@ -212,7 +140,7 @@ int main(int argc, char *argv[])
 
 				send_message(socketDialogue, message);
 			}
-			else if (message[0] - '0' > 8)
+			else if (message[0] - '0' > 9)
 			{
 				strcpy(message, "ERROR"); 
 				send_message(socketDialogue, message);
@@ -230,8 +158,8 @@ int main(int argc, char *argv[])
 					update_grid(message[0] - '0', grid, message[1]);
 					show_grid(grid);
 
-					winner_x = gagnant('X', grid);
-					nb_left = check_full(grid);
+					winner_x = is_winner('X', grid);
+					nb_left = is_full(grid);
 
 					if (nb_left == 0 || winner_x == 1)
 					{
@@ -253,8 +181,8 @@ int main(int argc, char *argv[])
 						update_grid(random_nb, grid, 'O');
 						show_grid(grid);
 
-						winner_O = gagnant('O', grid);
-						nb_left = check_full(grid);
+						winner_O = is_winner('O', grid);
+						nb_left = is_full(grid);
 
 						if (nb_left == 0 || winner_O == 1)
 						{
@@ -297,6 +225,8 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+
+	sleep(10);
 
 	close(socketEcoute);
 	return 0;

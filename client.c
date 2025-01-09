@@ -7,40 +7,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "socket_management.h"
+#include "tictactoe.h"
 
 #define LG_MESSAGE 256
-#define GRID_SIZE 3
-#define GRID_CASE GRID_SIZE *GRID_SIZE
-
-void show_grid(const char grid[GRID_CASE])
-{
-	for (int i = 0; i < GRID_CASE; i++)
-	{
-		printf(" %c ", grid[i] ? grid[i] : ' ');
-		if ((i + 1) % GRID_SIZE == 0)
-		{
-			printf("\n");
-			if (i < GRID_CASE - GRID_SIZE)
-			{
-				for (int j = 0; j < GRID_SIZE - 1; j++)
-				{
-					printf("---+");
-				}
-				printf("---\n");
-			}
-		}
-		else
-		{
-			printf("|");
-		}
-	}
-	printf("\n");
-}
-
-void update_grid(const int i, char grid[GRID_CASE], const char symbol)
-{
-	grid[i - 1] = symbol;
-}
 
 int main(int argc, char *argv[])
 {
@@ -109,11 +78,8 @@ int main(int argc, char *argv[])
 
 	// Initialization of the grid
 	char grid[GRID_CASE];
-	for (int i = 0; i < GRID_CASE; i++)
-	{
-		grid[i] = ' ';
-	}
 
+	set_empty_grid(grid);
 	show_grid(grid);
 
 	// Loop on the interaction between client and server
@@ -133,7 +99,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			if (chosenCase)
+			if (chosenCase > 9)
 			{
 				printf("Value too big. Please enter a single number.\n");
 				continue;
