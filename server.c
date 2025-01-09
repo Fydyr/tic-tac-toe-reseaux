@@ -23,6 +23,130 @@
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
+void game(int socketDialogue, int socketDialogue2)
+{
+	int nb_left;					  /* nb de cases restantes */
+	int winner_x = 0;					  /* si le joueur X à gagné */
+	int winner_O = 0;					  /* si le joueur O à gagné */
+	int run_game;
+	char message[LG_MESSAGE];
+
+	// Initialization of the grid
+	char grid[GRID_CELL];
+	set_empty_grid(grid);
+	run_game = 1;
+
+	while (run_game)
+	{ 
+		int bytesRead = read_message(socketDialogue, message, sizeof(message));
+		
+		if (message[0] - '0' < 1)
+		{
+			strcpy(message, "ERROR"); 
+			send_message(socketDialogue, message);
+
+			memset(&message, 0x00, 9);
+			message[0] = '1'; 
+
+			send_message(socketDialogue, message);
+		}
+		else if (message[0] - '0' > 9)
+		{
+			strcpy(message, "ERROR"); 
+			send_message(socketDialogue, message);
+
+			memset(&message, 0x00, 9);
+			message[0] = '2'; 
+
+			send_message(socketDialogue, message);
+		}
+		else
+		{
+			if ( bytesRead > 0)
+			{
+
+				update_grid(message[0] - '0', grid, message[1]);
+				show_grid(grid);
+
+				winner_x = is_winner('X', grid);
+				nb_left = is_full(grid);
+
+				if (nb_left == 0 || winner_x == 1)
+				{
+					if (winner_x == 1)
+					{
+						strcpy(message, "XWIN"); 
+						send_message(socketDialogue, message);
+						close(socketDialogue);
+						run_game = 0;
+					}
+					else
+					{
+						strcpy(message, "XEND"); 
+						send_message(socketDialogue, message);
+						close(socketDialogue);
+						run_game = 0;
+					}
+				}
+				else
+				{
+					int random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
+					while (is_occupied(grid, random_nb)){
+						random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
+					}
+
+					update_grid(random_nb, grid, 'O');
+					show_grid(grid);
+
+					winner_O = is_winner('O', grid);
+					nb_left = is_full(grid);
+
+					if (nb_left == 0 || winner_O == 1)
+					{
+						if (winner_O == 1)
+						{
+							strcpy(message, "OWIN"); 
+							send_message(socketDialogue, message);
+
+							memset(&message, 0x00, 9);
+							message[0] = random_nb + '0'; 
+							message[1] = 'O';
+
+							send_message(socketDialogue, message);
+							close(socketDialogue);
+							run_game = 0;
+						}
+						else
+						{
+							strcpy(message, "OEND"); 
+							send_message(socketDialogue, message);
+
+							memset(&message, 0x00, 9);
+							message[0] = random_nb + '0'; 
+							message[1] = 'O';
+
+							send_message(socketDialogue, message);
+							close(socketDialogue);
+							run_game = 0;
+						}
+					}
+					else
+					{
+						strcpy(message, "CONTINUE"); 
+						send_message(socketDialogue, message);
+
+						memset(&message, 0x00, 9);
+						message[0] = random_nb + '0'; 
+						message[1] = 'O';
+
+						send_message(socketDialogue, message);
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int socketDialogue,socketDialogue2;
@@ -33,11 +157,6 @@ int main(int argc, char *argv[])
 	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
-	int nb_left;					  /* nb de cases restantes */
-	int winner_x = 0;					  /* si le joueur X à gagné */
-	int winner_O = 0;					  /* si le joueur O à gagné */
-	int run_game;
-	char message[LG_MESSAGE];
 
 	srand(time(NULL));
 
@@ -84,120 +203,7 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue, buffer);
 		send_message(socketDialogue2,buffer);
 
-		// Initialization of the grid
-		char grid[GRID_CELL];
-		set_empty_grid(grid);
-		run_game = 1;
-
-		while (run_game)
-		{ 
-			int bytesRead = read_message(socketDialogue, message, sizeof(message));
-			
-			if (message[0] - '0' < 1)
-			{
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '1'; 
-
-				send_message(socketDialogue, message);
-			}
-			else if (message[0] - '0' > 9)
-			{
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '2'; 
-
-				send_message(socketDialogue, message);
-			}
-			else
-			{
-				if ( bytesRead > 0)
-				{
-
-					update_grid(message[0] - '0', grid, message[1]);
-					show_grid(grid);
-
-					winner_x = is_winner('X', grid);
-					nb_left = is_full(grid);
-
-					if (nb_left == 0 || winner_x == 1)
-					{
-						if (winner_x == 1)
-						{
-							strcpy(message, "XWIN"); 
-							send_message(socketDialogue, message);
-							close(socketDialogue);
-							run_game = 0;
-						}
-						else
-						{
-							strcpy(message, "XEND"); 
-							send_message(socketDialogue, message);
-							close(socketDialogue);
-							run_game = 0;
-						}
-					}
-					else
-					{
-						int random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
-						while (is_occupied(grid, random_nb)){
-							random_nb = (rand() % (GRID_SIZE*GRID_SIZE)) + 1;
-						}
-
-						update_grid(random_nb, grid, 'O');
-						show_grid(grid);
-
-						winner_O = is_winner('O', grid);
-						nb_left = is_full(grid);
-
-						if (nb_left == 0 || winner_O == 1)
-						{
-							if (winner_O == 1)
-							{
-								strcpy(message, "OWIN"); 
-								send_message(socketDialogue, message);
-
-								memset(&message, 0x00, 9);
-								message[0] = random_nb + '0'; 
-								message[1] = 'O';
-
-								send_message(socketDialogue, message);
-								close(socketDialogue);
-								run_game = 0;
-							}
-							else
-							{
-								strcpy(message, "OEND"); 
-								send_message(socketDialogue, message);
-
-								memset(&message, 0x00, 9);
-								message[0] = random_nb + '0'; 
-								message[1] = 'O';
-
-								send_message(socketDialogue, message);
-								close(socketDialogue);
-								run_game = 0;
-							}
-						}
-						else
-						{
-							strcpy(message, "CONTINUE"); 
-							send_message(socketDialogue, message);
-
-							memset(&message, 0x00, 9);
-							message[0] = random_nb + '0'; 
-							message[1] = 'O';
-
-							send_message(socketDialogue, message);
-						}
-					}
-				}
-			}
-		}
+		game(socketDialogue, socketDialogue2);
 	}
 
 	sleep(10);
