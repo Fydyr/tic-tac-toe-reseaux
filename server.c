@@ -28,7 +28,7 @@ struct Tuple {
     char position[LG_MESSAGE];
 };
 
-struct Tuple tour_joueur(int socketDialogue, char player, char grid[GRID_CELL])
+struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 {
 	int next = 0;					/* si la partie continue */
 	int winner = 0;					  /* si le joueur actuelle à gagné */
@@ -90,7 +90,7 @@ void game(int socketDialogue, int socketDialogue2)
 
 	while (run_game)
 	{ 
-		result_turn = tour_joueur(socketDialogue, 'X', grid);
+		result_turn = player_turn(socketDialogue, 'X', grid);
 		switch (result_turn.outcome)
 		{
 		case -2:
@@ -162,7 +162,7 @@ void game(int socketDialogue, int socketDialogue2)
 		}
 
 		if (result_turn.outcome == 0){
-			result_turn = tour_joueur(socketDialogue2, 'O', grid);
+			result_turn = player_turn(socketDialogue2, 'O', grid);
 			switch (result_turn.outcome)
 			{
 			case -2:
