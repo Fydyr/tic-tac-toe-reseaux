@@ -26,7 +26,8 @@ int main(int argc, char *argv[])
 	char buffer[] = "Demande de partie";
 	char message[10];
 	char player;
-	int first_turn_block = 0;
+	char player_turn;
+	int first_turn_block = 1;
 
 	char ip_dest[16];
 	int port_dest;
@@ -55,6 +56,7 @@ int main(int argc, char *argv[])
 
 	printf("Player : %s\n\n", buffer);
 	player = buffer[0];
+	player_turn = (player == 'X') ? 'O' : 'X';
 
 	// Initialization of the grid
 	char grid[GRID_CELL];
@@ -62,19 +64,20 @@ int main(int argc, char *argv[])
 	set_empty_grid(grid);
 	show_grid(grid);
 
-	if (player == 'O')
-	{
-		first_turn_block = 1;
-		printf("Player X's turn");
-	}
 	// Loop on the interaction between client and server
 	while (1)
 	{
-		// Wait if player is 'O'
-		if (first_turn_block == 0)
+		if ((first_turn_block != 1 && player == 'X') || player == 'O')
 		{
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+			printf("Player %c's turn\n\n", player_turn);
+		}
+		else
+		{
 			first_turn_block = 0;
+		}
+		// Wait if player is 'O' and it's the first turn
+		if ((first_turn_block != 1 && player == 'O') || player == 'X')
+		{
 			
 			int chosenCell;
 			printf("Choose a cell: ");
@@ -112,40 +115,61 @@ int main(int argc, char *argv[])
 			update_grid(chosenCell, grid, message[1]);
 			show_grid(grid);
 		}
+		else
+		{
+			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+			first_turn_block = 0;
+		}
 
 		memset(message, 0, sizeof(message));
-		printf("Player %c's turn", player);
-
 		read_message(descriptorSocket, message, sizeof(message), 0);
 
 		if (message[0] == 'X' || message[0] == 'O')
 		{
 			if (strcmp(message, "XWIN") == 0)
 			{
-				printf("The player has won !\n");
+				if	(player == 'O')
+				{
+					read_message(descriptorSocket, message, sizeof(message), 0);
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+				}
+				printf("The player X has won !\n");
 				close(descriptorSocket);
 				return 0;
 			}
 			else if (strcmp(message, "XEND") == 0)
 			{
+				if	(player == 'O')
+				{
+					read_message(descriptorSocket, message, sizeof(message), 0);
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+				}
 				printf("Game over\nNo winner !\n");
 				close(descriptorSocket);
 				return 0;
 			}
 			else if (strcmp(message, "OWIN") == 0)
 			{
-				read_message(descriptorSocket, message, sizeof(message), 0);
-				update_grid(message[0] - '0', grid, message[1]);
-				show_grid(grid);
-				printf("The server has won !\n");
+				if (player == 'X')
+				{
+					read_message(descriptorSocket, message, sizeof(message), 0);
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+				}
+				printf("The player O has won !\n");
 				close(descriptorSocket);
 				return 0;
 			}
 			else if (strcmp(message, "OEND") == 0)
 			{
-				read_message(descriptorSocket, message, sizeof(message), 0);
-				update_grid(message[0] - '0', grid, message[1]);
-				show_grid(grid);
+				if	(player == 'X')
+				{
+					read_message(descriptorSocket, message, sizeof(message), 0);
+					update_grid(message[0] - '0', grid, message[1]);
+					show_grid(grid);
+				}
 				printf("Game over\nNo winner !\n");
 				close(descriptorSocket);
 				return 0;
