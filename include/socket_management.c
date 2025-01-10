@@ -15,6 +15,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#define ERROR_SOCKET_USED -1
+
 
 int create_listen_socket(const int port, struct sockaddr_in *localEncounterPoint) {
     
@@ -36,7 +38,7 @@ int create_listen_socket(const int port, struct sockaddr_in *localEncounterPoint
     if (bind(listenSocket, (struct sockaddr *)localEncounterPoint, addrLength) < 0) {
         perror("bind");
         close(listenSocket);
-        exit(EXIT_FAILURE);
+        listenSocket = ERROR_SOCKET_USED;
     }
 
     return listenSocket;

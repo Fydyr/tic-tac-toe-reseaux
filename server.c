@@ -19,7 +19,7 @@
 #include "include/socket_management.h"
 #include "include/tictactoe.h"
 
-#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
@@ -234,6 +234,7 @@ int main(int argc, char *argv[])
 {
 	int socketDialogue,socketDialogue2;
 	int socketEcoute;
+	int port;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
 
@@ -243,7 +244,26 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	socketEcoute = create_listen_socket(PORT,&pointDeRencontreLocal);
+    // Looking for an open port
+	port = MIN_PORT;
+	while(1){
+		// Associate socket with currently selected port
+		if (port > MAX_PORT)
+		{
+			perror("bind");
+            exit(EXIT_FAILURE);
+		}
+		else if ((socketEcoute = create_listen_socket(port, &pointDeRencontreLocal)) < 0)
+		{
+            port++;
+		}
+		else
+		{
+			printf("Current Port : %d\n", port);
+			break;
+		}
+	}
+
 	addrLength = sizeof(pointDeRencontreLocal);
 
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
