@@ -37,6 +37,7 @@ Executer les commandes
 ./launcher.sh
 ./server # Terminal 1
 ./client 127.0.0.1 5000 # Terminal 2
+./client 127.0.0.1 5000 # Terminal 3
 ```
 Pour fermer les deux terminaux il faut faire un `CTRL+C` dans le terminal dans lequel vous avez lancer le client cela fermera le second programme en même temps.
 
