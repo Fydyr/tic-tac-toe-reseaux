@@ -19,7 +19,7 @@
 #include "include/socket_management.h"
 #include "include/tictactoe.h"
 
-#define PORT 5000 //(ports >= 5000 réservés pour usage explicite)
+#define PORT 5000	  //(ports >= 5000 réservés pour usage explicite)
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
@@ -108,7 +108,7 @@ void game(int socketDialogue, int socketDialogue2)
 			send_message(socketDialogue, message);
 
 			memset(&message, 0x00, 9);
-			message[0] = '1'; 
+			message[0] = '1';
 
 			send_message(socketDialogue, message);
 			break;
@@ -230,20 +230,66 @@ void game(int socketDialogue, int socketDialogue2)
 	}
 }
 
+int turn(const char symbol,char grid[GRID_CELL], const int socketDialogue, const int socketDialogue2, liste)
+{
+	char message[LG_MESSAGE];
+	int winner,nb_left,bytesRead,end;
+
+	bytesRead = read_message(socketDialogue, message, sizeof(message));
+
+	if(bytesRead > 0)
+	{
+		update_grid(message[0] - '0', grid, symbol);
+
+		winner = is_winner(symbol, grid);
+		nb_left = is_full(grid);
+
+		if (nb_left == 0 || winner == 1)
+		{
+			if (winner == 1)
+			{
+				snprintf(message, sizeof(message), "%cWIN", symbol);
+				send_message(socketDialogue, message);
+				send_message(socketDialogue2, message);
+				close(socketDialogue);
+				close(socketDialogue2);
+				end = 1;
+			}
+			else
+			{
+				snprintf(message, sizeof(message), "%cEND", symbol);
+				send_message(socketDialogue, message);
+				send_message(socketDialogue2, message);
+				close(socketDialogue);
+				end = 1;
+			}
+		}
+		else {
+			end = 0;
+		}
+	}
+	else
+	{
+		end = -1;
+	}
+
+	return end;
+}
+
 int main(int argc, char *argv[])
 {
-	int socketDialogue,socketDialogue2;
+	int socketDialogue, socketDialogue2;
 	int socketEcoute;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
 
-	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
+	struct sockaddr_in pointDeRencontreDistant, pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
 
 	srand(time(NULL));
 
-	socketEcoute = create_listen_socket(PORT,&pointDeRencontreLocal);
+	socketEcoute = create_listen_socket(PORT, &pointDeRencontreLocal);
 	addrLength = sizeof(pointDeRencontreLocal);
 
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
@@ -257,7 +303,7 @@ int main(int argc, char *argv[])
 	// boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment !
 	while (1)
 	{
-		memset(messageRecu, 'a', LG_MESSAGE*sizeof(char));
+		memset(messageRecu, 'a', LG_MESSAGE * sizeof(char));
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant

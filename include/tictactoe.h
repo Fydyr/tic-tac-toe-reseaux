@@ -50,9 +50,17 @@ int is_winner(char joueur, const char grid[GRID_CELL]);
 /**
  * Check if the cell is occupied
  * @param grid the character table who represents the grid
- * @param cell the character table who represents the grid
+ * @param cell the cell to check
  * @return `1` if the cell is occupied else `0` 
  */
 int is_occupied(const char grid[GRID_CELL], int cell);
+
+/**
+ * Check if the index of the cell
+ * @param grid the character table who represents the grid
+ * @param cell the cell to check
+ * @return `1` if the cell exist else `0` 
+ */
+int is_valid_cell(const char grid[GRID_CELL], int cell);
 
 #endif

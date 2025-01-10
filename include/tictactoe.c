@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <execinfo.h>
 
 void set_empty_grid(char grid[GRID_CELL])
 {
@@ -93,4 +92,19 @@ int is_winner(char player, const char grid[GRID_CELL]){
 
 int is_occupied(const char grid[GRID_CELL], int cell) {
     return grid[cell - 1] != ' ';
+}
+
+int is_valid_cell(const char grid[GRID_CELL], int cell){
+
+    int valid;
+
+    if(cell >= 1 && cell <= GRID_CELL)
+    {
+        valid = 1;
+    }
+    else {
+        valid = 0;
+    }
+
+    return valid;
 }
