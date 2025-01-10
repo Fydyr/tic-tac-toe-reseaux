@@ -73,7 +73,7 @@ int is_full(const char grid[GRID_CELL]){
 int is_winner(char player, const char grid[GRID_CELL]){
 	int i, result;
 
-    for (i = 0; i < GRID_SIZE; i=i+GRID_SIZE) {
+    for (i = 0; i < GRID_CELL; i=i+GRID_SIZE) {
         if (grid[i] == player && grid[i+1] == player && grid[i+2] == player) {
             result = 1;
         }
