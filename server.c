@@ -16,6 +16,9 @@
 #include <arpa/inet.h>	/* pour htons et inet_aton */
 #include <signal.h>
 #include <time.h>
+#include <threads.h>	/* pour créer des threads*/
+#include <stdatomic.h>	/* pour générer une mémoire sécurisée entre threads*/
+#include <omp.h>	/* pour le parrallelisme du code */
 #include "include/socket_management.h"
 #include "include/tictactoe.h"
 
@@ -23,11 +26,161 @@
 #define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
 #define LG_MESSAGE 256
 
+#define QUEUE_SIZE 10 // Taille de la liste de demande de spectateurs
+#define SPECTATOR_SIZE 30 // Taille de la liste de spectateurs
+
+typedef struct {
+    int sockets[QUEUE_SIZE];
+	int spectators[SPECTATOR_SIZE];
+    int front;
+    int rear;
+    int count;
+	int unused_count;
+    mtx_t mutex;
+    cnd_t cond;
+} SocketQueue;
+
+// Global queue
+SocketQueue queue;
+
+// Initialize the queue
+void queue_init(SocketQueue *queue)
+{
+    queue->front = queue->rear = queue->count = 0;
+    queue->unused_count = SPECTATOR_SIZE;
+	for(int i=0; i<SPECTATOR_SIZE; i++)
+	{
+		queue->spectators[i] = 0;
+	}
+    mtx_init(&queue->mutex, mtx_plain);
+    cnd_init(&queue->cond);
+}
+
+// Destroy the queue
+void queue_destroy(SocketQueue *queue)
+{
+	for (int i=0; i<SPECTATOR_SIZE; i++)
+	{
+		if (queue->spectators[i] != 0)
+		{
+			close(queue->spectators[i]);
+		}
+	}
+    mtx_destroy(&queue->mutex);
+    cnd_destroy(&queue->cond);
+}
+
+// Enqueue a client socket (Producer)
+void queue_push(SocketQueue *queue, int client_socket)
+{
+    mtx_lock(&queue->mutex);
+
+    // Wait if the queue is full
+    while (queue->count == QUEUE_SIZE) {
+        cnd_wait(&queue->cond, &queue->mutex);
+    }
+
+    queue->sockets[queue->rear] = client_socket;
+    queue->rear = (queue->rear + 1) % QUEUE_SIZE;
+    queue->count++;
+
+    cnd_signal(&queue->cond); // Notify the consumer
+    mtx_unlock(&queue->mutex);
+}
+
+int queue_pop(SocketQueue *queue)
+{
+    mtx_lock(&queue->mutex);
+
+    // Wait if the queue is empty
+    while (queue->count == 0) {
+        cnd_wait(&queue->cond, &queue->mutex);
+    }
+
+    int client_socket = queue->sockets[queue->front];
+    queue->front = (queue->front + 1) % QUEUE_SIZE;
+    queue->count--;
+
+    cnd_signal(&queue->cond); // Notify the producer
+    mtx_unlock(&queue->mutex);
+
+    return client_socket;
+}
+
+// Dequeue a client socket (Consumer)
+void update_spectator_list(SocketQueue *queue, int *socket_server)
+{
+	int error = 0;
+	int spectator_socket;
+	int new_socket = queue_pop(queue);
+	char message[LG_MESSAGE];
+    socklen_t len = sizeof(error);
+
+    mtx_lock(&queue->mutex);
+    for (int i = 0; i < SPECTATOR_SIZE; i++)
+	{
+		spectator_socket = queue->spectators[i];
+		if(getsockopt(spectator_socket, SOL_SOCKET, SO_ERROR, &error, &len) >= 0 && queue->count != 0){
+			queue->spectators[i] = new_socket;
+		}
+		else if (queue->count != 0 && queue->spectators[i] == 0)
+		{
+			queue->spectators[i] = new_socket;
+			queue->unused_count--;
+		}
+		else{
+			queue->unused_count++;
+		}
+	}
+
+	read_message(new_socket, message, LG_MESSAGE * sizeof(char), 0);
+	strcpy(message, "spectator");
+	send_message(new_socket, message);
+
+    mtx_unlock(&queue->mutex);
+}
+
+// Background thread function to accept connections
+int accept_connections(void *arg)
+{
+    int server_socket = *(int *)arg;
+
+    while (1)
+	{
+        // Accept a new client connection
+        struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+
+        if (client_socket < 0) {
+            perror("Accept failed");
+            continue;
+        }
+
+        printf("Accepted new spectator: socket %d\n", client_socket);
+
+        // Push the client socket to the queue
+        queue_push(&queue, client_socket);
+
+		if (queue.unused_count > 0 && queue.count > 0)
+		{
+			//update spectator list
+			update_spectator_list(&queue, &server_socket);
+		}
+    }
+
+    return 0;
+}
+
+
+
+/** Create a tuple composed of the outcome of a turn and a position*/
 struct Tuple {
     int outcome;
     char position[LG_MESSAGE];
 };
 
+/* Game Functions */
 struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 {
 	int next = 0;					/* si la partie continue */
@@ -76,6 +229,22 @@ struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 	return result;
 }
 
+void notify_spectators(SocketQueue *queue)
+{
+	char message[LG_MESSAGE];
+	int spectator_count = SPECTATOR_SIZE - queue->unused_count;
+	strcpy(message, "You're spectating");
+
+	if (spectator_count > 0)
+	{
+		omp_set_num_threads(SPECTATOR_SIZE - queue->unused_count);
+		#pragma omp parallel
+		{
+			send_message(queue->spectators[omp_get_thread_num()], message);
+		}
+	}
+}
+
 void game(int socketDialogue, int socketDialogue2)
 {
 	struct Tuple result_turn;					  /* resultat du tour du joueur */
@@ -90,6 +259,7 @@ void game(int socketDialogue, int socketDialogue2)
 
 	while (run_game)
 	{ 
+		notify_spectators(&queue);
 		result_turn = player_turn(socketDialogue, 'X', grid);
 		switch (result_turn.outcome)
 		{
@@ -230,6 +400,8 @@ void game(int socketDialogue, int socketDialogue2)
 	}
 }
 
+
+
 int main(int argc, char *argv[])
 {
 	int socketDialogue,socketDialogue2;
@@ -299,6 +471,14 @@ int main(int argc, char *argv[])
 			exit(-4);
 		}
 
+		queue_init(&queue);
+		int created_thread = 0;
+		thrd_t accept_thread;
+
+		if ((created_thread = thrd_create(&accept_thread, accept_connections, &socketEcoute)) != thrd_success) {
+			fprintf(stderr, "Failed to create spectator accept thread\n");
+		}
+
 		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char), 0);
 		read_message(socketDialogue2, messageRecu, LG_MESSAGE * sizeof(char), 0);
 
@@ -315,6 +495,11 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue2, buffer);
 
 		game(socketDialogue, socketDialogue2);
+			
+		if(created_thread != 0){
+			thrd_join(accept_thread, NULL);
+		}
+		queue_destroy(&queue);
 	}
 
 	sleep(10);
