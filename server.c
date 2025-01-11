@@ -162,6 +162,7 @@ int accept_connections(void *arg)
 	
     while (!cancel_flag)
 	{
+		//
 		fd_set read_fds;
 		FD_ZERO(&read_fds);
     	FD_SET(server_socket, &read_fds);
