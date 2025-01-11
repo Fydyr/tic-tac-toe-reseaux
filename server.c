@@ -50,9 +50,7 @@ atomic_int cancel_flag = 0;
 // Initialize the queue
 void queue_init(SocketQueue *queue)
 {
-    queue->front = 0;
-	queue->rear = 0;
-	queue->count = 0;
+    queue->front = queue->rear = queue->count = 0;
     queue->unused_count = SPECTATOR_SIZE;
 	for(int i=0; i<SPECTATOR_SIZE; i++)
 	{
@@ -206,66 +204,6 @@ int accept_connections(void *arg)
 	return 0;
 }
 
-
-
-/** Create a tuple composed of the outcome of a turn and a position*/
-struct Tuple {
-    int outcome;
-    char position[LG_MESSAGE];
-};
-
-/* Game Functions */
-/**
- * Function to let a player choose an unused cell for their turn
- */
-struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
-{
-	int next = 0;					/* si la partie continue */
-	int winner = 0;					  /* si le joueur actuelle à gagné */
-	char message[LG_MESSAGE];
-	struct Tuple result;
-	int nb_left;					  /* nb de cases restantes */
-
-
-	int bytesRead = read_message(socketDialogue, message, sizeof(message), 0);
-	
-	if (message[0] - '0' < 1)
-	{
-		next = -1;
-	}
-	else if (message[0] - '0' > 9)
-	{
-		next = -2;
-	}
-	else
-	{
-		if ( bytesRead > 0)
-		{
-
-			update_grid(message[0] - '0', grid, message[1]);
-			show_grid(grid);
-
-			winner = is_winner(player, grid);
-			nb_left = is_full(grid);
-
-			if (nb_left == 0 || winner == 1)
-			{
-				if (winner == 1)
-				{
-					next = 1;
-				}
-				else
-				{
-					next = 2;
-				}
-			}
-		}
-	}
-	result.outcome = next;
-	strcpy(result.position, message);
-	return result;
-}
-
 /**
  * Sending a message to all spectators
  */
@@ -286,176 +224,101 @@ int notify_spectators(SocketQueue *queue, char *message)
 	return 0;
 }
 
+/* Game Functions */
+/**
+ * Function to let a player choose an unused cell for their turn
+ */
+int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[GRID_CELL])
+{
+	int next = -1;	/* si la partie continue */
+	int winner = 0; /* si le joueur actuelle à gagné */
+	char message[10], position[4];
+	int nb_left; /* nb de cases restantes */
+
+	memset(message, 0, sizeof(message));
+	memset(position, 0, sizeof(position));
+	int bytesRead = read_message(socketDialogue, position, sizeof(position), 0);
+	
+	if (bytesRead > 0)
+	{
+		if (position[0] - '0' < 1 || position[0] - '0' > 9 || is_occupied(grid, position[0] - '0'))
+		{
+			next = -1;
+		}
+		else
+		{
+			update_grid(position[0] - '0', grid, position[1]);
+			winner = is_winner(player, grid);
+
+			nb_left = is_full(grid);
+
+			if (winner == 1) next = 1;
+			if (nb_left == 0) next = 2;
+			if (next == -1) next = 0;
+		}
+    
+		switch (next)
+		{
+		case 0:
+			strcpy(message, "CONTINUE");
+			break;
+		case 1:
+			sprintf(message, "%cWIN", player);
+			break;
+		case 2:
+			sprintf(message, "%cEND", player);
+			break;
+		default:
+			strcpy(message, "ERROR");
+			break;
+		}
+
+		if (strcasecmp(message, "ERROR") == 1)
+		{
+			send_message(socketDialogue, message);
+		}
+		else
+		{
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
+
+			memset(message, 0, sizeof(message));
+			strcpy(message, position);
+
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
+		}
+	}
+
+	return next;
+}
+
 /**
  * Function to start a new game
  */
 void game(int socketDialogue, int socketDialogue2)
 {
-	struct Tuple result_turn;					  /* resultat du tour du joueur */
-	int run_game;
-	int first_turn = 1;
-	char message[LG_MESSAGE];
-
-	// Initialization of the grid
+	int run_game, result;
 	char grid[GRID_CELL];
+
 	set_empty_grid(grid);
+
 	run_game = 1;
+	result = -1;
+	while (run_game == 1)
+	{
+		result = -1;
+		while (result == -1) result = player_turn(socketDialogue, socketDialogue2, 'X', grid);
 
-	while (run_game)
-	{ 
-		result_turn = player_turn(socketDialogue, 'X', grid);
-		switch (result_turn.outcome)
+		if (result == 0)
 		{
-		case -2:
-			strcpy(message, "ERROR"); 
-			send_message(socketDialogue, message);
-
-			memset(&message, 0x00, 9);
-			message[0] = '2'; 
-
-			send_message(socketDialogue, message);
-			break;
-		
-		case -1:
-			strcpy(message, "ERROR"); 
-			send_message(socketDialogue, message);
-
-			memset(&message, 0x00, 9);
-			message[0] = '1'; 
-
-			send_message(socketDialogue, message);
-			break;
-
-		case 0:
-			if(first_turn == 1)
-			{
-				strcpy(message, "START");
-				send_message(socketDialogue2, message);
-				first_turn = 0;
-			}
-			strcpy(message, "CONTINUE"); 
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			break;
-
-		case 1:
-			strcpy(message, "XWIN"); 
-			send_message(socketDialogue, message);
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue2);
-			run_game = 0;
-			break;
-		
-		case 2:
-			strcpy(message, "XEND"); 
-			send_message(socketDialogue, message);
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue2);
-			run_game = 0;
-			break;
-
-		default:
-			break;
+			result = -1;
+			while (result == -1) result = player_turn(socketDialogue2, socketDialogue, 'O', grid);
+			if (result > 0) run_game = 0;
 		}
-
-		if (result_turn.outcome == 0){
-			result_turn = player_turn(socketDialogue2, 'O', grid);
-			switch (result_turn.outcome)
-			{
-			case -2:
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '2'; 
-
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-				break;
-			
-			case -1:
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '1'; 
-
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-				break;
-
-			case 0:
-				strcpy(message, "CONTINUE"); 
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				break;
-
-			case 1:
-				strcpy(message, "OWIN"); 
-				send_message(socketDialogue2, message);
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue2);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue);
-				run_game = 0;
-				break;
-			
-			case 2:
-				strcpy(message, "OEND"); 
-				send_message(socketDialogue2, message);
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue2);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue);
-				run_game = 0;
-				break;
-
-			default:
-				break;
-			}
-		}
+		else run_game = 0;
 	}
 }
 
