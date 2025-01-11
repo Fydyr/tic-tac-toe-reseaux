@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 				read_message(descriptorSocket, message, sizeof(message), 0);
 				update_grid(message[0] - '0', grid, message[1]);
 				show_grid(grid);
-				printf("Player %c has won !!!", message[1]);
+				printf("Player %c has won !!!\n", message[1]);
 				close(descriptorSocket);
 				return 0;
 			}

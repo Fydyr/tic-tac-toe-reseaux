@@ -11,6 +11,7 @@
 #include <unistd.h> /* pour read, write, close, sleep */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <string.h>		/* pour memset */
 #include <netinet/in.h> /* pour struct sockaddr_in */
 #include <arpa/inet.h>	/* pour htons et inet_aton */
@@ -42,7 +43,9 @@ typedef struct {
 
 // Global queue for the threads
 SocketQueue queue;
-int run_thread;
+
+// Shared flag to indicate cancellation
+atomic_int cancel_flag = 0;
 
 // Initialize the queue
 void queue_init(SocketQueue *queue)
@@ -152,37 +155,53 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
     mtx_unlock(&queue->mutex);
 }
 
-// Close thread
-
 // Background thread function to accept connections
 int accept_connections(void *arg)
 {
     int server_socket = *(int *)arg;
-	run_thread = 1;
-    while (run_thread)
+	
+    while (!cancel_flag)
 	{
-        // Accept a new client connection
-        struct sockaddr_in client_addr;
-        socklen_t client_len = sizeof(client_addr);
-        int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+		fd_set read_fds;
+		FD_ZERO(&read_fds);
+    	FD_SET(server_socket, &read_fds);
+		struct timeval timeout = {1, 0};
+		int client_socket = 0;
 
-        if (client_socket < 0) {
-            perror("Accept failed");
-            continue;
-        }
+        int ready = select(server_socket + 1, &read_fds, NULL, NULL, &timeout);
 
-        printf("Accepted new spectator: socket %d\n", client_socket);
+        if (ready == -1) {
+            perror("select");
+            break;
+        } else if (ready == 0) {
+            client_socket = 0;
+        } else {
+            if (FD_ISSET(server_socket, &read_fds))
+			{
+				// Accept a new client connection
+				struct sockaddr_in client_addr;
+				socklen_t client_len = sizeof(client_addr);
+				client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+			}
+		}
 
-        // Push the client socket to the queue
-        queue_push(&queue, client_socket);
-
-		if (queue.unused_count > 0 && queue.count > 0)
+		if (client_socket > 0)
 		{
-			//update spectator list
-			update_spectator_list(&queue, &server_socket);
+			printf("Accepted new spectator: socket %d\n", client_socket);
+			send_message(client_socket, "message");
+			
+			// Push the client socket to the queue
+			queue_push(&queue, client_socket);
+			
+			printf("add spectator");
+
+			if (queue.unused_count > 0 && queue.count > 0)
+			{
+				//update spectator list
+				update_spectator_list(&queue, &server_socket);
+			}
 		}
     }
-
 	return 0;
 }
 
@@ -448,7 +467,6 @@ int main(int argc, char *argv[])
 	int port;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
-	int* res = 0;
 
 	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
@@ -456,6 +474,7 @@ int main(int argc, char *argv[])
 
 	int created_thread = 0;
 	thrd_t accept_thread;
+	int* res = 0;
 
 	srand(time(NULL));
 
@@ -545,8 +564,10 @@ int main(int argc, char *argv[])
 		close(socketDialogue2);
 
 		if(created_thread == 1){
+			cancel_flag = 1;
 			thrd_join(accept_thread, res);
 			created_thread = 0;
+			cancel_flag = 0;
 		}
 		queue_destroy(&queue);
 	}
