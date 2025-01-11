@@ -89,13 +89,14 @@ int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[
 
 void game(int socketDialogue, int socketDialogue2)
 {
-	int run_game, result = -1, first_turn = 1;
-	char message[LG_MESSAGE];
+	int run_game, result;
+	char grid[GRID_CELL];
 
 	// Initialization of the grid
-	char grid[GRID_CELL];
 	set_empty_grid(grid);
+
 	run_game = 1;
+	result = -1;
 
 	while (run_game == 1)
 	{
@@ -148,7 +149,6 @@ int main(int argc, char *argv[])
 		{
 			perror("accept");
 			close(socketDialogue);
-			close(socketEcoute);
 			exit(-4);
 		}
 
@@ -157,7 +157,6 @@ int main(int argc, char *argv[])
 		{
 			perror("accept");
 			close(socketDialogue2);
-			close(socketEcoute);
 			exit(-4);
 		}
 
@@ -173,7 +172,7 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue, buffer);
 
 		memset(&buffer, 0x00, 9);
-		strcpy(buffer, "O");
+		strcpy(buffer, "S");
 		send_message(socketDialogue2, buffer);
 
 		game(socketDialogue, socketDialogue2);

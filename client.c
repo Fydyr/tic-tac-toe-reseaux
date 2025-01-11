@@ -102,7 +102,7 @@ int result_process(const char player, int descriptorSocket)
 
 void play(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
-	char rival, message[4];
+	char message[4];
 	int chosenCell;
 
 	printf("It is your turn !\n");
@@ -119,8 +119,6 @@ void play(const char player, char grid[GRID_CELL], int descriptorSocket)
 
 void spectate(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
-	char message[10];
-
 	printf("It is the turn of Player %c !\n", (player == 'X') ? 'O' : 'X');
 	show_grid(grid);
 }
@@ -130,8 +128,10 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 	int result, position;
 	char message[4];
 
+	position = (player == 'X') ? 1 : 2;
+	//position = (player == 'S') ? 0 : position;
+
 	result = -1;
-	position = (player == 'X') ? 1 : 0;
 
 	while (result <= 0)
 	{
@@ -144,8 +144,8 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 			result = result_process(player, descriptorSocket);
 		}
 
-		if(position == 1) position = 0;
-		else position = 1;
+		if(position == 1) position = 2;
+		else if(position == 2) position = 1;
 
 		memset(message, 0, sizeof(message));
 		read_message(descriptorSocket, message, sizeof(message), 0);
@@ -162,10 +162,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in sockaddrDistant;
 
 	char buffer[] = "Demande de partie";
-	char message[10];
 	char player;
-	char player_turn;
-	int first_turn_block = 1;
 
 	char ip_dest[16];
 	int port_dest;
@@ -193,7 +190,6 @@ int main(int argc, char *argv[])
 
 	printf("Player : %s\n\n", buffer);
 	player = buffer[0];
-	player_turn = (player == 'X') ? 'O' : 'X';
 
 	// Initialization of the grid
 	char grid[GRID_CELL];
@@ -202,7 +198,8 @@ int main(int argc, char *argv[])
 	show_grid(grid);
 
 	game_loop(player, grid, descriptorSocket);
-	sleep(100);
+
+	sleep(10);
 	close(descriptorSocket);
 	return 0;
 }
