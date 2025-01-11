@@ -15,6 +15,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#define ERROR_SOCKET_USED -1
+
 
 int create_listen_socket(const int port, struct sockaddr_in *localEncounterPoint) {
     
@@ -36,7 +38,7 @@ int create_listen_socket(const int port, struct sockaddr_in *localEncounterPoint
     if (bind(listenSocket, (struct sockaddr *)localEncounterPoint, addrLength) < 0) {
         perror("bind");
         close(listenSocket);
-        exit(EXIT_FAILURE);
+        listenSocket = ERROR_SOCKET_USED;
     }
 
     return listenSocket;
@@ -98,15 +100,14 @@ int read_message(int socket, char *message, int size, int read_only) {
 
         default: // Data have been recovered
             message[state] = '\0';
-            //printf("Recovered message : %s (%d bits)\n", message, state);
-            return state;
+            printf("Recovered message : %s (%d bits)\n", message, state);
+            return 1;
     }
 }
 
 int send_message(int socket, char *message)
 {
 	int state;
-    sleep(1);
 	switch(state = send(socket, message, strlen(message)+1, 0)){
 			case -1 : /* an error ! */
 				perror("Error in writing...");
@@ -117,7 +118,7 @@ int send_message(int socket, char *message)
 			    close(socket);
                 return 0;
 			default: /* envoi de n octets */
-				//printf("Sending responses : %s (%d bits)\n\n", message, state);
+				printf("Sending responses : %s (%d bits)\n\n", message, state);
                 return 1;
 		}
 }
