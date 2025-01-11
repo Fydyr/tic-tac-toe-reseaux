@@ -47,6 +47,10 @@ SocketQueue queue;
 // Shared flag to indicate cancellation
 atomic_int cancel_flag = 0;
 
+// Shared flag to indicate cancellation
+atomic_char game_grid[GRID_CELL];
+atomic_int grid_changed = 0;
+
 // Initialize the queue
 void queue_init(SocketQueue *queue)
 {
@@ -150,7 +154,39 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
 	strcpy(message, "S");
 	send_message(new_socket, message);
 
-    mtx_unlock(&queue->mutex);
+	if (grid_changed == 1)
+	{
+		for(int y=0 ; y<GRID_CELL ; y++)
+		{
+			if (game_grid[y] != ' ')
+			{
+				memset(message, 0, sizeof(message));
+				strcpy(message, "CONTINUE");
+				send_message(new_socket, message);
+
+				memset(message, 0, sizeof(message));
+				message[0] = y+1 + '0';
+				message[1] = game_grid[y];
+				send_message(new_socket, message);
+			}
+		}
+	}
+
+	mtx_unlock(&queue->mutex);
+}
+
+void init_grid()
+{
+	for (int i=0 ; i<GRID_CELL ; i++)
+	{
+		game_grid[i] = ' ';
+	}
+}
+
+void change_grid(int n, char letter)
+{
+	game_grid[n-1] = letter;
+	grid_changed = 1;
 }
 
 // Background thread function to accept connections
@@ -191,8 +227,6 @@ int accept_connections(void *arg)
 			
 			// Push the client socket to the queue
 			queue_push(&queue, client_socket);
-			
-			printf("add spectator");
 
 			if (queue.unused_count > 0 && queue.count > 0)
 			{
@@ -248,6 +282,7 @@ int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[
 		else
 		{
 			update_grid(position[0] - '0', grid, position[1]);
+			change_grid(position[0]-'0', position[1]);
 			winner = is_winner(player, grid);
 
 			nb_left = is_full(grid);
@@ -398,6 +433,8 @@ int main(int argc, char *argv[])
 		}
 
 		queue_init(&queue);
+		init_grid();
+		grid_changed = 0;
 
 		if (thrd_create(&accept_thread, accept_connections, &socketEcoute) != thrd_success) {
 			fprintf(stderr, "Failed to create spectator accept thread\n");
