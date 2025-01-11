@@ -70,17 +70,17 @@ int result_process(const char player, int descriptorSocket)
 
 	if (strcasecmp(message, "XEND") == 0 || strcasecmp(message, "OEND") == 0)
 	{
-		printf("GAME OVER\n Nobody has won");
+		printf("GAME OVER\n Nobody has won\n");
 		state = 1;
 	}
 	else if (strcasecmp(message, winner_code) == 0)
 	{
-		printf("You have won");
+		printf("You have won\n");
 		state = 1;
 	}
 	else if (strcasecmp(message, loser_code) == 0)
 	{
-		printf("You have lost");
+		printf("You have lost\n");
 		state = 1;
 	}
 	else if (strcasecmp(message, "CONTINUE") == 0)
@@ -100,6 +100,12 @@ int result_process(const char player, int descriptorSocket)
 	return state;
 }
 
+/**
+ * If the client is a player
+ * @param player the current player symbol
+ * @param grid the character table who represents the grid
+ * @param descriptorSocket the socket who is connected to the server
+ */
 void play(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
 	char message[4];
@@ -114,15 +120,25 @@ void play(const char player, char grid[GRID_CELL], int descriptorSocket)
 	send_message(descriptorSocket, message);
 
 	update_grid(chosenCell, grid, message[1]);
-	show_grid(grid);
 }
 
+/**
+ * If the player don't play, he spectates the game
+ * @param player the current player symbol
+ * @param grid the character table who represents the grid
+ * @param descriptorSocket the socket who is connected to the server
+ */
 void spectate(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
 	printf("It is the turn of Player %c !\n", (player == 'X') ? 'O' : 'X');
-	show_grid(grid);
 }
 
+/**
+ * The game loop, the game logic is applied here
+ * @param player the current player symbol
+ * @param grid the character table who represents the grid
+ * @param descriptorSocket the socket who is connected to the server
+ */
 void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
 	int result, position;
@@ -152,7 +168,6 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 		update_grid(message[0] - '0', grid, message[1]);
 		show_grid(grid);
 		memset(message, 0, sizeof(message));
-		sleep(1);
 	}
 }
 
@@ -197,6 +212,7 @@ int main(int argc, char *argv[])
 	set_empty_grid(grid);
 	show_grid(grid);
 
+	// Start the game
 	game_loop(player, grid, descriptorSocket);
 
 	sleep(10);
