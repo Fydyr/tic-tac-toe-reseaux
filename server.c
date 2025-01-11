@@ -229,15 +229,13 @@ struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 	return result;
 }
 
-void notify_spectators(SocketQueue *queue)
+void notify_spectators(SocketQueue *queue, char *message)
 {
-	char message[LG_MESSAGE];
 	int spectator_count = SPECTATOR_SIZE - queue->unused_count;
-	strcpy(message, "You're spectating");
 
 	if (spectator_count > 0)
 	{
-		omp_set_num_threads(SPECTATOR_SIZE - queue->unused_count);
+		omp_set_num_threads(spectator_count);
 		#pragma omp parallel
 		{
 			send_message(queue->spectators[omp_get_thread_num()], message);
@@ -259,7 +257,6 @@ void game(int socketDialogue, int socketDialogue2)
 
 	while (run_game)
 	{ 
-		notify_spectators(&queue);
 		result_turn = player_turn(socketDialogue, 'X', grid);
 		switch (result_turn.outcome)
 		{
@@ -292,23 +289,27 @@ void game(int socketDialogue, int socketDialogue2)
 			}
 			strcpy(message, "CONTINUE"); 
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 
 			memset(&message, 0x00, 9);
 			strcpy(message, result_turn.position);
 
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 			break;
 
 		case 1:
 			strcpy(message, "XWIN"); 
 			send_message(socketDialogue, message);
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 			close(socketDialogue);
 
 			memset(&message, 0x00, 9);
 			strcpy(message, result_turn.position);
 
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 			close(socketDialogue2);
 			run_game = 0;
 			break;
@@ -317,12 +318,14 @@ void game(int socketDialogue, int socketDialogue2)
 			strcpy(message, "XEND"); 
 			send_message(socketDialogue, message);
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 			close(socketDialogue);
 
 			memset(&message, 0x00, 9);
 			strcpy(message, result_turn.position);
 
 			send_message(socketDialogue2, message);
+			notify_spectators(&queue, message);
 			close(socketDialogue2);
 			run_game = 0;
 			break;
@@ -338,43 +341,51 @@ void game(int socketDialogue, int socketDialogue2)
 			case -2:
 				strcpy(message, "ERROR"); 
 				send_message(socketDialogue2, message);
+				notify_spectators(&queue, message);
 
 				memset(&message, 0x00, 9);
 				message[0] = '2'; 
 
 				send_message(socketDialogue2, message);
+				notify_spectators(&queue, message);
 				break;
 			
 			case -1:
 				strcpy(message, "ERROR"); 
 				send_message(socketDialogue2, message);
+				notify_spectators(&queue, message);
 
 				memset(&message, 0x00, 9);
 				message[0] = '1'; 
 
 				send_message(socketDialogue2, message);
+				notify_spectators(&queue, message);
 				break;
 
 			case 0:
 				strcpy(message, "CONTINUE"); 
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 
 				memset(&message, 0x00, 9);
 				strcpy(message, result_turn.position);
 
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 				break;
 
 			case 1:
 				strcpy(message, "OWIN"); 
 				send_message(socketDialogue2, message);
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 				close(socketDialogue2);
 
 				memset(&message, 0x00, 9);
 				strcpy(message, result_turn.position);
 
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 				close(socketDialogue);
 				run_game = 0;
 				break;
@@ -383,12 +394,14 @@ void game(int socketDialogue, int socketDialogue2)
 				strcpy(message, "OEND"); 
 				send_message(socketDialogue2, message);
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 				close(socketDialogue2);
 
 				memset(&message, 0x00, 9);
 				strcpy(message, result_turn.position);
 
 				send_message(socketDialogue, message);
+				notify_spectators(&queue, message);
 				close(socketDialogue);
 				run_game = 0;
 				break;

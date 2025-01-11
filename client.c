@@ -203,6 +203,15 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-
+		while (1)
+		{
+			memset(message, 0, sizeof(message));
+			read_message(descriptorSocket, message, sizeof(message), 0);
+			printf("%s", message);
+			if((strcmp(message, "XWIN") == 0) || (strcmp(message, "XEND") == 0) || (strcmp(message, "OEND") == 0) || (strcmp(message, "OWIN") == 0)){
+				close(descriptorSocket);
+				return 0;
+			}
+		}
 	}
 }
