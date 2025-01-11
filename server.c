@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue, buffer);
 
 		memset(&buffer, 0x00, 9);
-		strcpy(buffer, "S");
+		strcpy(buffer, "O");
 		send_message(socketDialogue2, buffer);
 
 		game(socketDialogue, socketDialogue2);
