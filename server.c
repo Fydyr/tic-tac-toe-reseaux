@@ -165,7 +165,7 @@ int accept_connections(void *arg)
 		fd_set read_fds;
 		FD_ZERO(&read_fds);
     	FD_SET(server_socket, &read_fds);
-		struct timeval timeout = {1, 0};
+		struct timeval timeout = {0, 500000};
 		int client_socket = 0;
 
         int ready = select(server_socket + 1, &read_fds, NULL, NULL, &timeout);
