@@ -23,8 +23,7 @@
 #include "include/socket_management.h"
 #include "include/tictactoe.h"
 
-#define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
-#define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
+#define PORT 5000
 #define LG_MESSAGE 256
 
 #define QUEUE_SIZE 10 // Taille de la liste de demande de spectateurs
@@ -206,6 +205,7 @@ int accept_connections(void *arg)
 	return 0;
 }
 
+<<<<<<< HEAD
 
 
 /** Create a tuple composed of the outcome of a turn and a position*/
@@ -219,47 +219,37 @@ struct Tuple {
  * Function to let a player choose an unused cell for their turn
  */
 struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
+=======
+int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[GRID_CELL])
+>>>>>>> v3_opti
 {
-	int next = 0;					/* si la partie continue */
-	int winner = 0;					  /* si le joueur actuelle à gagné */
-	char message[LG_MESSAGE];
-	struct Tuple result;
-	int nb_left;					  /* nb de cases restantes */
+	int next = -1;	/* si la partie continue */
+	int winner = 0; /* si le joueur actuelle à gagné */
+	char message[10], position[4];
+	int nb_left; /* nb de cases restantes */
 
-
-	int bytesRead = read_message(socketDialogue, message, sizeof(message), 0);
+	memset(message, 0, sizeof(message));
+	memset(position, 0, sizeof(position));
+	int bytesRead = read_message(socketDialogue, position, sizeof(position), 0);
 	
-	if (message[0] - '0' < 1)
+	if (bytesRead > 0)
 	{
-		next = -1;
-	}
-	else if (message[0] - '0' > 9)
-	{
-		next = -2;
-	}
-	else
-	{
-		if ( bytesRead > 0)
+		if (position[0] - '0' < 1 || position[0] - '0' > 9 || is_occupied(grid, position[0] - '0'))
 		{
-
-			update_grid(message[0] - '0', grid, message[1]);
-			show_grid(grid);
-
+			next = -1;
+		}
+		else
+		{
+			update_grid(position[0] - '0', grid, position[1]);
 			winner = is_winner(player, grid);
+
 			nb_left = is_full(grid);
 
-			if (nb_left == 0 || winner == 1)
-			{
-				if (winner == 1)
-				{
-					next = 1;
-				}
-				else
-				{
-					next = 2;
-				}
-			}
+			if (winner == 1) next = 1;
+			if (nb_left == 0) next = 2;
+			if (next == -1) next = 0;
 		}
+<<<<<<< HEAD
 	}
 	result.outcome = next;
 	strcpy(result.position, message);
@@ -278,12 +268,47 @@ int notify_spectators(SocketQueue *queue, char *message)
 		// Using parrallel threading to send to all spectators simultaneously
 		omp_set_num_threads(spectator_count);
 		#pragma omp parallel
+=======
+    
+		switch (next)
+>>>>>>> v3_opti
 		{
-			send_message(queue->spectators[omp_get_thread_num()], message);
+		case 0:
+			strcpy(message, "CONTINUE");
+			break;
+		case 1:
+			sprintf(message, "%cWIN", player);
+			break;
+		case 2:
+			sprintf(message, "%cEND", player);
+			break;
+		default:
+			strcpy(message, "ERROR");
+			break;
+		}
+
+		if (strcasecmp(message, "ERROR") == 1)
+		{
+			send_message(socketDialogue, message);
+		}
+		else
+		{
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
+
+			memset(message, 0, sizeof(message));
+			strcpy(message, position);
+
+			send_message(socketDialogue, message);
+			send_message(socketDialogue2, message);
 		}
 	}
 
+<<<<<<< HEAD
 	return 0;
+=======
+	return next;
+>>>>>>> v3_opti
 }
 
 /**
@@ -291,171 +316,25 @@ int notify_spectators(SocketQueue *queue, char *message)
  */
 void game(int socketDialogue, int socketDialogue2)
 {
-	struct Tuple result_turn;					  /* resultat du tour du joueur */
-	int run_game;
-	int first_turn = 1;
-	char message[LG_MESSAGE];
-
-	// Initialization of the grid
+	int run_game, result;
 	char grid[GRID_CELL];
-	set_empty_grid(grid);
+
+	set_empty_grid(grid
+
 	run_game = 1;
+	result = -1;
+	while (run_game == 1)
+	{
+		result = -1;
+		while (result == -1) result = player_turn(socketDialogue, socketDialogue2, 'X', grid);
 
-	while (run_game)
-	{ 
-		result_turn = player_turn(socketDialogue, 'X', grid);
-		switch (result_turn.outcome)
+		if (result == 0)
 		{
-		case -2:
-			strcpy(message, "ERROR"); 
-			send_message(socketDialogue, message);
-
-			memset(&message, 0x00, 9);
-			message[0] = '2'; 
-
-			send_message(socketDialogue, message);
-			break;
-		
-		case -1:
-			strcpy(message, "ERROR"); 
-			send_message(socketDialogue, message);
-
-			memset(&message, 0x00, 9);
-			message[0] = '1'; 
-
-			send_message(socketDialogue, message);
-			break;
-
-		case 0:
-			if(first_turn == 1)
-			{
-				strcpy(message, "START");
-				send_message(socketDialogue2, message);
-				first_turn = 0;
-			}
-			strcpy(message, "CONTINUE"); 
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			break;
-
-		case 1:
-			strcpy(message, "XWIN"); 
-			send_message(socketDialogue, message);
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue2);
-			run_game = 0;
-			break;
-		
-		case 2:
-			strcpy(message, "XEND"); 
-			send_message(socketDialogue, message);
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue);
-
-			memset(&message, 0x00, 9);
-			strcpy(message, result_turn.position);
-
-			send_message(socketDialogue2, message);
-			notify_spectators(&queue, message);
-			close(socketDialogue2);
-			run_game = 0;
-			break;
-
-		default:
-			break;
+			result = -1;
+			while (result == -1) result = player_turn(socketDialogue2, socketDialogue, 'O', grid);
+			if (result > 0) run_game = 0;
 		}
-
-		if (result_turn.outcome == 0){
-			result_turn = player_turn(socketDialogue2, 'O', grid);
-			switch (result_turn.outcome)
-			{
-			case -2:
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '2'; 
-
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-				break;
-			
-			case -1:
-				strcpy(message, "ERROR"); 
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				message[0] = '1'; 
-
-				send_message(socketDialogue2, message);
-				notify_spectators(&queue, message);
-				break;
-
-			case 0:
-				strcpy(message, "CONTINUE"); 
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				break;
-
-			case 1:
-				strcpy(message, "OWIN"); 
-				send_message(socketDialogue2, message);
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue2);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue);
-				run_game = 0;
-				break;
-			
-			case 2:
-				strcpy(message, "OEND"); 
-				send_message(socketDialogue2, message);
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue2);
-
-				memset(&message, 0x00, 9);
-				strcpy(message, result_turn.position);
-
-				send_message(socketDialogue, message);
-				notify_spectators(&queue, message);
-				close(socketDialogue);
-				run_game = 0;
-				break;
-
-			default:
-				break;
-			}
-		}
+		else run_game = 0;
 	}
 }
 
@@ -463,13 +342,12 @@ void game(int socketDialogue, int socketDialogue2)
 
 int main(int argc, char *argv[])
 {
-	int socketDialogue,socketDialogue2;
+	int socketDialogue, socketDialogue2;
 	int socketEcoute;
-	int port;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
 
-	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
+	struct sockaddr_in pointDeRencontreDistant, pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
 
@@ -479,26 +357,7 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-    // Looking for an open port
-	port = MIN_PORT;
-	while(1){
-		// Associate socket with currently selected port
-		if (port > MAX_PORT)
-		{
-			perror("bind");
-            exit(EXIT_FAILURE);
-		}
-		else if ((socketEcoute = create_listen_socket(port, &pointDeRencontreLocal)) < 0)
-		{
-            port++;
-		}
-		else
-		{
-			printf("Current Port : %d\n", port);
-			break;
-		}
-	}
-
+	socketEcoute = create_listen_socket(PORT, &pointDeRencontreLocal);
 	addrLength = sizeof(pointDeRencontreLocal);
 
 	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
@@ -512,7 +371,7 @@ int main(int argc, char *argv[])
 	// boucle d’atttente de connexion : en théorie, un serveur attend indéfiniment !
 	while (1)
 	{
-		memset(messageRecu, 'a', LG_MESSAGE*sizeof(char));
+		memset(messageRecu, 0, LG_MESSAGE * sizeof(char));
 		printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
 
 		// c’est un appel bloquant
@@ -521,7 +380,6 @@ int main(int argc, char *argv[])
 		{
 			perror("accept");
 			close(socketDialogue);
-			close(socketEcoute);
 			exit(-4);
 		}
 
@@ -530,7 +388,6 @@ int main(int argc, char *argv[])
 		{
 			perror("accept");
 			close(socketDialogue2);
-			close(socketEcoute);
 			exit(-4);
 		}
 
@@ -549,7 +406,7 @@ int main(int argc, char *argv[])
 
 		strcpy(buffer, "start");
 		send_message(socketDialogue, buffer);
-		send_message(socketDialogue2,buffer);
+		send_message(socketDialogue2, buffer);
 
 		memset(&buffer, 0x00, 9);
 		strcpy(buffer, "X");
