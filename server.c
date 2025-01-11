@@ -7,28 +7,28 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h> /* pour exit */
-#include <unistd.h> /* pour read, write, close, sleep */
+#include <stdlib.h> /* for exit */
+#include <unistd.h> /* for read, write, close, sleep */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <string.h>		/* pour memset */
-#include <netinet/in.h> /* pour struct sockaddr_in */
-#include <arpa/inet.h>	/* pour htons et inet_aton */
+#include <string.h>		/* for memset */
+#include <netinet/in.h> /* for struct sockaddr_in */
+#include <arpa/inet.h>	/* for htons et inet_aton */
 #include <signal.h>
 #include <time.h>
-#include <threads.h>	/* pour créer des threads*/
-#include <stdatomic.h>	/* pour générer une mémoire sécurisée entre threads*/
-#include <omp.h>	/* pour le parrallelisme du code */
+#include <threads.h>	/* for créer des threads*/
+#include <stdatomic.h>	/* for générer une mémoire sécurisée entre threads*/
+#include <omp.h>	/* for le parrallelisme du code */
 #include "include/socket_management.h"
 #include "include/tictactoe.h"
 
-#define MIN_PORT 5000 //(ports >= 5000 réservés pour usage explicite)
-#define MAX_PORT 5005 //(Port maximal pouvant être utilisé)
+#define MIN_PORT 5000 //(Minimal port)
+#define MAX_PORT 5005 //(Maximal port)
 #define LG_MESSAGE 256
 
-#define QUEUE_SIZE 10 // Taille de la liste de demande de spectateurs
-#define SPECTATOR_SIZE 30 // Taille de la liste de spectateurs
+#define QUEUE_SIZE 10 // Size of spectator request list
+#define SPECTATOR_SIZE 30 // Size of spectator list
 
 typedef struct {
     int sockets[QUEUE_SIZE];
@@ -51,7 +51,9 @@ atomic_int cancel_flag = 0;
 atomic_char game_grid[GRID_CELL];
 atomic_int grid_changed = 0;
 
-// Initialize the queue
+/**
+ * Initialize the queue 
+ */ 
 void queue_init(SocketQueue *queue)
 {
     queue->front = queue->rear = queue->count = 0;
@@ -64,7 +66,9 @@ void queue_init(SocketQueue *queue)
     cnd_init(&queue->cond);
 }
 
-// Destroy the queue
+/**
+ * Destroy the queue 
+ */ 
 void queue_destroy(SocketQueue *queue)
 {
 	for (int i=0; i<SPECTATOR_SIZE; i++)
@@ -78,7 +82,9 @@ void queue_destroy(SocketQueue *queue)
     cnd_destroy(&queue->cond);
 }
 
-// Enqueue a client socket (Producer)
+/**
+ * Enqueue a client socket (Producer)
+ */
 void queue_push(SocketQueue *queue, int client_socket)
 {
     mtx_lock(&queue->mutex);
@@ -96,6 +102,9 @@ void queue_push(SocketQueue *queue, int client_socket)
     mtx_unlock(&queue->mutex);
 }
 
+/**
+ * Remove client from the queue
+ */
 int queue_pop(SocketQueue *queue)
 {
     mtx_lock(&queue->mutex);
@@ -115,7 +124,9 @@ int queue_pop(SocketQueue *queue)
     return client_socket;
 }
 
-// Dequeue a client socket (Consumer)
+/**
+ *  Dequeue a client socket (Consumer)
+*/ 
 void update_spectator_list(SocketQueue *queue, int *socket_server)
 {
 	int error = 0;
@@ -175,21 +186,21 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
 	mtx_unlock(&queue->mutex);
 }
 
-void init_grid()
-{
-	for (int i=0 ; i<GRID_CELL ; i++)
-	{
-		game_grid[i] = ' ';
-	}
-}
-
+/**
+ * Store modifications of the grid
+ * @param n index in the grid
+ * @param letter character at this cell
+ */
 void change_grid(int n, char letter)
 {
 	game_grid[n-1] = letter;
 	grid_changed = 1;
 }
 
-// Background thread function to accept connections
+/**
+ * Background thread function to accept connections
+ * @param arg 
+ */ 
 int accept_connections(void *arg)
 {
     int server_socket = *(int *)arg;
@@ -240,6 +251,8 @@ int accept_connections(void *arg)
 
 /**
  * Sending a message to all spectators
+ * @param queue the queue for incoming requests
+ * @param message the message to send
  */
 int notify_spectators(SocketQueue *queue, char *message)
 {
@@ -261,13 +274,15 @@ int notify_spectators(SocketQueue *queue, char *message)
 /* Game Functions */
 /**
  * Function to let a player choose an unused cell for their turn
+ * @param socketDialogue the socket of the client who play
+ * @param socketDialogue the socket of the client who wait to play
  */
 int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[GRID_CELL])
 {
-	int next = -1;	/* si la partie continue */
-	int winner = 0; /* si le joueur actuelle à gagné */
+	int next = -1;	/* if the game continue */
+	int winner = 0; /* if the current player is winner */
 	char message[10], position[4];
-	int nb_left; /* nb de cases restantes */
+	int nb_left; /* number of empty cell */
 
 	memset(message, 0, sizeof(message));
 	memset(position, 0, sizeof(position));
@@ -314,6 +329,7 @@ int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[
 		}
 		else
 		{
+			// Send the message
 			send_message(socketDialogue, message);
 			send_message(socketDialogue2, message);
 			notify_spectators(&queue, message);
@@ -321,6 +337,7 @@ int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[
 			memset(message, 0, sizeof(message));
 			strcpy(message, position);
 
+			// Send the position
 			send_message(socketDialogue, message);
 			send_message(socketDialogue2, message);
 			notify_spectators(&queue, message);
@@ -332,6 +349,8 @@ int player_turn(int socketDialogue, int socketDialogue2, char player, char grid[
 
 /**
  * Function to start a new game
+ * @param socketDialogue the socket connection of the first player
+ * @param socketDialogue2 the socket connection of the second player
  */
 void game(int socketDialogue, int socketDialogue2)
 {
@@ -369,7 +388,7 @@ int main(int argc, char *argv[])
 
 	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
-	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
+	char buffer[LG_MESSAGE];	  // Buffer for recevoir la réponse
 
 	int created_thread = 0;
 	thrd_t accept_thread;
@@ -399,7 +418,7 @@ int main(int argc, char *argv[])
 
 	addrLength = sizeof(pointDeRencontreLocal);
 
-	// On fixe la taille de la file d’attente à 5 (pour les demandes de connexion non encore traitées)
+	// On fixe la taille de la file d’attente à 5 (for les demandes de connexion non encore traitées)
 	if (listen(socketEcoute, 5) < 0)
 	{
 		perror("listen");
@@ -433,7 +452,12 @@ int main(int argc, char *argv[])
 		}
 
 		queue_init(&queue);
-		init_grid();
+		
+		for (int i=0 ; i<GRID_CELL ; i++)
+		{
+			game_grid[i] = ' ';
+		}
+
 		grid_changed = 0;
 
 		if (thrd_create(&accept_thread, accept_connections, &socketEcoute) != thrd_success) {

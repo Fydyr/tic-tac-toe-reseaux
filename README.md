@@ -25,6 +25,13 @@ Executer la commande
 ./launcher.bat
 ```
 
+en cas de problème de port changez les ports dans le launcher/fichier serveur ou utilisez la commandes suivante dans plusieurs terminaux wsl
+
+```cmd
+./F3_server_V3 # Si le serveur n'est pas allumé
+./F3_client_V3 127.0.0.1 port
+```
+
 Pour fermer l'application, fermer le terminal client puis le terminal serveur.
 
 Peu importe si la commande `CTRL+C` est executée.

@@ -18,6 +18,11 @@
 
 #define LG_MESSAGE 256
 
+/**
+ * Request a number to fill the grid
+ * @param grid the character table who represents the grid
+ * @return the chosen number
+ */
 int request_cell(const char grid[GRID_CELL])
 {
 	int chosenCell;
@@ -55,6 +60,9 @@ int request_cell(const char grid[GRID_CELL])
 }
 
 /**
+ * Process the result of a turn
+ * @param player the symbol of the player
+ * @param descriptorSocket the socket connection with the server
  * @return
  * - `-1` : erreur / `0` : continue / `1` : fin de jeu
  */
@@ -65,6 +73,7 @@ int result_process(const char player, int descriptorSocket)
 
 	read_message(descriptorSocket, message, sizeof(message), 0);
 
+	// Get the winner code and loser code if the current client isn't a spectator
 	if(player == 'X' || player == 'O')
 	{
 		sprintf(winner_code, "%cWIN", player);
@@ -73,22 +82,23 @@ int result_process(const char player, int descriptorSocket)
 	
 	if (strcasecmp(message, "XEND") == 0 || strcasecmp(message, "OEND") == 0)
 	{
-		printf("GAME OVER\n Nobody has won\n");
+		printf("GAME OVER\n Nobody has won\n\n");
 		state = 1;
 	}
 	else if (strcasecmp(message, winner_code) == 0)
 	{
-		printf("You have won\n");
+		printf("You have won\n\n");
 		state = 1;
 	}
 	else if (strcasecmp(message, loser_code) == 0)
 	{
-		printf("You have lost\n");
+		printf("You have lost\n\n");
 		state = 1;
 	}
+	// If there is a winner but the client isn't a player
 	else if (strcasecmp(message, "XWIN") == 0 || strcasecmp(message, "OWIN") == 0)
 	{
-		printf("The player %c is winner\n",message[0]);
+		printf("The player %c is winner\n\n",message[0]);
 		state = 1;
 	}
 	else if (strcasecmp(message, "CONTINUE") == 0)
@@ -97,12 +107,12 @@ int result_process(const char player, int descriptorSocket)
 	}
 	else if (strcmp(message, "ERROR") == 0)
 	{
-		printf("Invalid input: number is too large. Choose between 1 and 9.\n");
+		printf("Invalid input: number is incorrect. Choose between 1 and 9.\n\n");
 		state = -1;
 	}
 	else
 	{
-		printf("Unknown message received: %s\n", message);
+		printf("Unknown message received: %s\n\n", message);
 		state = -1;
 	}
 	return state;
@@ -119,7 +129,7 @@ void play(const char player, char grid[GRID_CELL], int descriptorSocket)
 	char message[4];
 	int chosenCell;
 
-	printf("It is your turn !\n");
+	printf("It is your turn !\n\n");
 	chosenCell = request_cell(grid);
 
 	message[0] = chosenCell + '0';
@@ -138,7 +148,7 @@ void play(const char player, char grid[GRID_CELL], int descriptorSocket)
  */
 void spectate(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
-	printf("It is the turn of Player %c !\n", (player == 'X') ? 'O' : 'X');
+	printf("It is the turn of Player %c !\n\n", player);
 }
 
 /**
@@ -151,9 +161,12 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
 	int result, position;
 	char message[4];
+	char current_player;
 
 	position = (player == 'X') ? 1 : 2;
 	position = (player == 'S') ? 0 : position;
+
+	current_player = 'X';
 
 	result = -1;
 
@@ -163,7 +176,7 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 		while (result == -1)
 		{
 			if (position == 1) play(player, grid, descriptorSocket);
-			else spectate(player, grid, descriptorSocket);
+			else spectate(current_player, grid, descriptorSocket);
 
 			result = result_process(player, descriptorSocket);
 		}
@@ -176,6 +189,7 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 		update_grid(message[0] - '0', grid, message[1]);
 		show_grid(grid);
 		memset(message, 0, sizeof(message));
+		current_player = (current_player == 'X') ? 'O' : 'X';
 	}
 }
 
@@ -184,7 +198,7 @@ int main(int argc, char *argv[])
 	int descriptorSocket;
 	struct sockaddr_in sockaddrDistant;
 
-	char buffer[] = "Demande de partie";
+	char buffer[] = "OK";
 	char player;
 
 	char ip_dest[16];

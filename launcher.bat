@@ -17,6 +17,7 @@ wsl gcc -fopenmp -c client.c -Wall -I./include
 wsl gcc -fopenmp -o client client.o socket_management.o tictactoe.o -Wall -I./include
 wt -w 0 nt wsl ./client 127.0.0.1 5000
 wt -w 0 nt wsl ./client 127.0.0.1 5000
+wt -w 0 nt wsl ./client 127.0.0.1 5000
 
 echo Compilation et lancement client : Fait
 
