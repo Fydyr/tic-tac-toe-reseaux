@@ -241,7 +241,7 @@ void game(int socketDialogue, int socketDialogue2)
 	int run_game, result;
 	char grid[GRID_CELL];
 
-	set_empty_grid(grid
+	set_empty_grid(grid);
 
 	run_game = 1;
 	result = -1;
