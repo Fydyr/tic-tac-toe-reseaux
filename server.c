@@ -40,13 +40,16 @@ typedef struct {
     cnd_t cond;
 } SocketQueue;
 
-// Global queue
+// Global queue for the threads
 SocketQueue queue;
+int run_thread;
 
 // Initialize the queue
 void queue_init(SocketQueue *queue)
 {
-    queue->front = queue->rear = queue->count = 0;
+    queue->front = 0;
+	queue->rear = 0;
+	queue->count = 0;
     queue->unused_count = SPECTATOR_SIZE;
 	for(int i=0; i<SPECTATOR_SIZE; i++)
 	{
@@ -112,24 +115,33 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
 {
 	int error = 0;
 	int spectator_socket;
+	int count = queue->count;
 	int new_socket = queue_pop(queue);
 	char message[LG_MESSAGE];
     socklen_t len = sizeof(error);
 
     mtx_lock(&queue->mutex);
+	queue->unused_count = SPECTATOR_SIZE;
     for (int i = 0; i < SPECTATOR_SIZE; i++)
 	{
 		spectator_socket = queue->spectators[i];
-		if(getsockopt(spectator_socket, SOL_SOCKET, SO_ERROR, &error, &len) >= 0 && queue->count != 0){
+		if (getsockopt(spectator_socket, SOL_SOCKET, SO_ERROR, &error, &len) < 0 && count != 0){
 			queue->spectators[i] = new_socket;
+			count--;
+			queue->unused_count--;
+		}
+		else if (getsockopt(spectator_socket, SOL_SOCKET, SO_ERROR, &error, &len) < 0 && count == 0){
+			queue->spectators[i] = 0;
 		}
 		else if (queue->count != 0 && queue->spectators[i] == 0)
 		{
 			queue->spectators[i] = new_socket;
+			count--;
 			queue->unused_count--;
 		}
-		else{
-			queue->unused_count++;
+		else
+		{
+			queue->unused_count--;
 		}
 	}
 
@@ -140,12 +152,14 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
     mtx_unlock(&queue->mutex);
 }
 
+// Close thread
+
 // Background thread function to accept connections
 int accept_connections(void *arg)
 {
     int server_socket = *(int *)arg;
-
-    while (1)
+	run_thread = 1;
+    while (run_thread)
 	{
         // Accept a new client connection
         struct sockaddr_in client_addr;
@@ -169,7 +183,7 @@ int accept_connections(void *arg)
 		}
     }
 
-    return 0;
+	return 0;
 }
 
 
@@ -181,6 +195,9 @@ struct Tuple {
 };
 
 /* Game Functions */
+/**
+ * Function to let a player choose an unused cell for their turn
+ */
 struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 {
 	int next = 0;					/* si la partie continue */
@@ -229,20 +246,29 @@ struct Tuple player_turn(int socketDialogue, char player, char grid[GRID_CELL])
 	return result;
 }
 
-void notify_spectators(SocketQueue *queue, char *message)
+/**
+ * Sending a message to all spectators
+ */
+int notify_spectators(SocketQueue *queue, char *message)
 {
 	int spectator_count = SPECTATOR_SIZE - queue->unused_count;
-
+	
 	if (spectator_count > 0)
 	{
+		// Using parrallel threading to send to all spectators simultaneously
 		omp_set_num_threads(spectator_count);
 		#pragma omp parallel
 		{
 			send_message(queue->spectators[omp_get_thread_num()], message);
 		}
 	}
+
+	return 0;
 }
 
+/**
+ * Function to start a new game
+ */
 void game(int socketDialogue, int socketDialogue2)
 {
 	struct Tuple result_turn;					  /* resultat du tour du joueur */
@@ -422,10 +448,14 @@ int main(int argc, char *argv[])
 	int port;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t addrLength;
+	int* res = 0;
 
 	struct sockaddr_in pointDeRencontreDistant,pointDeRencontreDistant2;
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	char buffer[LG_MESSAGE];	  // Buffer pour recevoir la réponse
+
+	int created_thread = 0;
+	thrd_t accept_thread;
 
 	srand(time(NULL));
 
@@ -485,11 +515,13 @@ int main(int argc, char *argv[])
 		}
 
 		queue_init(&queue);
-		int created_thread = 0;
-		thrd_t accept_thread;
 
-		if ((created_thread = thrd_create(&accept_thread, accept_connections, &socketEcoute)) != thrd_success) {
+		if (thrd_create(&accept_thread, accept_connections, &socketEcoute) != thrd_success) {
 			fprintf(stderr, "Failed to create spectator accept thread\n");
+		}
+		else
+		{
+			created_thread = 1;
 		}
 
 		read_message(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char), 0);
@@ -508,9 +540,13 @@ int main(int argc, char *argv[])
 		send_message(socketDialogue2, buffer);
 
 		game(socketDialogue, socketDialogue2);
-			
-		if(created_thread != 0){
-			thrd_join(accept_thread, NULL);
+		
+		close(socketDialogue);
+		close(socketDialogue2);
+
+		if(created_thread == 1){
+			thrd_join(accept_thread, res);
+			created_thread = 0;
 		}
 		queue_destroy(&queue);
 	}
