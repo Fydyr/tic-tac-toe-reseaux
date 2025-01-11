@@ -108,6 +108,9 @@ int read_message(int socket, char *message, int size, int read_only) {
 int send_message(int socket, char *message)
 {
 	int state;
+
+    usleep(50);
+
 	switch(state = send(socket, message, strlen(message)+1, 0)){
 			case -1 : /* an error ! */
 				perror("Error in writing...");

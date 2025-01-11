@@ -147,7 +147,7 @@ void update_spectator_list(SocketQueue *queue, int *socket_server)
 	}
 
 	read_message(new_socket, message, LG_MESSAGE * sizeof(char), 0);
-	strcpy(message, "spectator");
+	strcpy(message, "S");
 	send_message(new_socket, message);
 
     mtx_unlock(&queue->mutex);
@@ -187,7 +187,7 @@ int accept_connections(void *arg)
 		if (client_socket > 0)
 		{
 			printf("Accepted new spectator: socket %d\n", client_socket);
-			send_message(client_socket, "message");
+			send_message(client_socket, "S");
 			
 			// Push the client socket to the queue
 			queue_push(&queue, client_socket);

@@ -65,9 +65,12 @@ int result_process(const char player, int descriptorSocket)
 
 	read_message(descriptorSocket, message, sizeof(message), 0);
 
-	sprintf(winner_code, "%cWIN", player);
-	sprintf(loser_code, "%cWIN", (player == 'X') ? 'O' : 'X');
-
+	if(player == 'X' || player == 'O')
+	{
+		sprintf(winner_code, "%cWIN", player);
+		sprintf(loser_code, "%cWIN", (player == 'X') ? 'O' : 'X');
+	}
+	
 	if (strcasecmp(message, "XEND") == 0 || strcasecmp(message, "OEND") == 0)
 	{
 		printf("GAME OVER\n Nobody has won\n");
@@ -81,6 +84,11 @@ int result_process(const char player, int descriptorSocket)
 	else if (strcasecmp(message, loser_code) == 0)
 	{
 		printf("You have lost\n");
+		state = 1;
+	}
+	else if (strcasecmp(message, "XWIN") == 0 || strcasecmp(message, "OWIN") == 0)
+	{
+		printf("The player %c is winner\n",message[0]);
 		state = 1;
 	}
 	else if (strcasecmp(message, "CONTINUE") == 0)
@@ -128,53 +136,9 @@ void play(const char player, char grid[GRID_CELL], int descriptorSocket)
  * @param grid the character table who represents the grid
  * @param descriptorSocket the socket who is connected to the server
  */
-void spectate(int descriptorSocket)
+void spectate(const char player, char grid[GRID_CELL], int descriptorSocket)
 {
-	char buffer[LG_MESSAGE];
-	int run = 1;
-
-	char grid[GRID_CELL];
-
-	set_empty_grid(grid);
-	show_grid(grid);
-
-	while (run)
-	{
-		read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-		if (strcasecmp(buffer, "XEND") == 0 || strcasecmp(buffer, "OEND") == 0)
-		{
-			memset(buffer, 0, sizeof(buffer));
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-			printf("GAME OVER\n Nobody has won\n");
-			run = 0;
-		}
-		else if (strcasecmp(buffer, "XWIN") == 0)
-		{
-			memset(buffer, 0, sizeof(buffer));
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-			printf("Player X has won\n");
-			run = 0;
-		}
-		else if (strcasecmp(buffer, "OWIN") == 0)
-		{
-			memset(buffer, 0, sizeof(buffer));
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-			printf("Player O has won\n");
-
-			update_grid(buffer[0] - '0', grid, buffer[1]);
-			show_grid(grid);
-
-			run = 0;
-		}
-		else if (strcasecmp(buffer, "CONTINUE") == 0)
-		{
-			memset(buffer, 0, sizeof(buffer));
-			read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
-
-			update_grid(buffer[0] - '0', grid, buffer[1]);
-			show_grid(grid);
-		}
-	}
+	printf("It is the turn of Player %c !\n", (player == 'X') ? 'O' : 'X');
 }
 
 /**
@@ -189,7 +153,7 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 	char message[4];
 
 	position = (player == 'X') ? 1 : 2;
-	//position = (player == 'S') ? 0 : position;
+	position = (player == 'S') ? 0 : position;
 
 	result = -1;
 
@@ -198,7 +162,8 @@ void game_loop(const char player, char grid[GRID_CELL], int descriptorSocket)
 		result = -1;
 		while (result == -1)
 		{
-			play(player, grid, descriptorSocket);
+			if (position == 1) play(player, grid, descriptorSocket);
+			else spectate(player, grid, descriptorSocket);
 
 			result = result_process(player, descriptorSocket);
 		}
@@ -243,27 +208,20 @@ int main(int argc, char *argv[])
 
 	read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
 
-	if(strcmp(buffer, "spectator") == 0)
-	{
-		spectate(descriptorSocket);
-	}
-	else
-	{
-		printf("GAME START\n");
-		read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
+	printf("GAME START\n");
+	read_message(descriptorSocket, buffer, LG_MESSAGE * sizeof(char), 0);
 
-		printf("Player : %s\n\n", buffer);
-		player = buffer[0];
+	printf("Player : %s\n\n", buffer);
+	player = buffer[0];
 
-		// Initialization of the grid
-		char grid[GRID_CELL];
+	// Initialization of the grid
+	char grid[GRID_CELL];
 
-		set_empty_grid(grid);
-		show_grid(grid);
+	set_empty_grid(grid);
+	show_grid(grid);
 
-		// Start the game
-		game_loop(player, grid, descriptorSocket);
-	}
+	// Start the game
+	game_loop(player, grid, descriptorSocket);
 
 	sleep(10);
 	close(descriptorSocket);
