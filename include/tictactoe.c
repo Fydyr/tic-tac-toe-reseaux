@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <execinfo.h>
 
 void set_empty_grid(char grid[GRID_CELL])
 {
@@ -72,6 +71,8 @@ int is_full(const char grid[GRID_CELL]){
 
 int is_winner(char player, const char grid[GRID_CELL]){
 	int i, result;
+
+    result = 0;
 
     for (i = 0; i < GRID_CELL; i=i+GRID_SIZE) {
         if (grid[i] == player && grid[i+1] == player && grid[i+2] == player) {

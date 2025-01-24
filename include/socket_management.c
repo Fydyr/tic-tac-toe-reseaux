@@ -100,7 +100,7 @@ int read_message(int socket, char *message, int size, int read_only) {
 
         default: // Data have been recovered
             message[state] = '\0';
-            printf("Recovered message : %s (%d bits)\n", message, state);
+            //printf("Recovered message : %s (%d bits)\n", message, state);
             return 1;
     }
 }
@@ -108,6 +108,10 @@ int read_message(int socket, char *message, int size, int read_only) {
 int send_message(int socket, char *message)
 {
 	int state;
+
+    // To wait for the receive operation
+    usleep(50);
+
 	switch(state = send(socket, message, strlen(message)+1, 0)){
 			case -1 : /* an error ! */
 				perror("Error in writing...");
@@ -117,8 +121,8 @@ int send_message(int socket, char *message)
 				fprintf(stderr, "The socket has been closed !\n\n");
 			    close(socket);
                 return 0;
-			default: /* envoi de n octets */
-				printf("Sending responses : %s (%d bits)\n\n", message, state);
+			default: /* send of n octets */
+				//printf("Sending responses : %s (%d bits)\n\n", message, state);
                 return 1;
 		}
 }
