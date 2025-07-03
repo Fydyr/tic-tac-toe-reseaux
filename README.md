@@ -1,4 +1,8 @@
-# Morpion - Version 1
+# Morpion - Version 3
+
+<p align="center">
+    <img src="./readme/logo.svg" alt="tic-tac-toe-reseaux-banner" width="800">
+</p>
 
 ## Bibliothèques
 
@@ -12,6 +16,27 @@
 - arpa/inet.h
 - signal.h
 -  time.h
+
+## Structure du projet
+
+```sh
+└── tic-tac-toe-reseaux/
+    ├── Enoncé SAE3.01C3.pdf
+    ├── README.md
+    ├── readme
+    │   └── logo.svg
+    ├── SAÉ C3 - cours.pdf
+    ├── V1.pdf
+    ├── client.c
+    ├── include
+    │   ├── socket_management.c
+    │   ├── socket_management.h
+    │   ├── tictactoe.c
+    │   └── tictactoe.h
+    ├── launcher.bat
+    ├── launcher.sh
+    └── server.c
+```
 
 ## Compilation et lancement
 
